@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Équipements — NEXMON</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="style_shared.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .brand-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+    .brand-card:hover { transform: translateY(-5px); border-color: rgba(255,255,255,0.1); }
+    .progress-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.05); overflow: hidden; }
+    .progress-fill { height: 100%; transition: width 1s ease-out; }
+  </style>
+</head>
+<body class="text-slate-200 min-h-screen">
+
+<div id="sidebar-container"></div>
+
+<div class="main-content">
+  <header class="flex justify-between items-end mb-12">
+    <div>
+      <h1 class="text-3xl font-black text-white tracking-tight">Analyse des Équipements</h1>
+      <p class="text-slate-500 text-sm mt-1 uppercase tracking-widest font-bold text-[10px]">Performance Comparative HUAWEI vs ALCATEL</p>
+    </div>
+    <div class="bg-blue-600/10 text-blue-400 px-4 py-2 rounded-xl border border-blue-500/20 text-xs font-bold flex items-center gap-2">
+      <span class="material-symbols-outlined text-sm">inventory_2</span>
+      <span id="total-chassis">0</span> Chassis actifs
+    </div>
+  </header>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+    <!-- HUAWEI CARD -->
+    <div class="glass brand-card p-8 rounded-3xl border border-white/5 relative overflow-hidden">
+      <div class="absolute -top-10 -right-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl"></div>
+      <div class="flex items-center justify-between mb-8">
+        <div class="bg-blue-600 text-white px-4 py-1.5 rounded-xl text-xs font-black tracking-[0.2em]">HUAWEI</div>
+        <span class="material-symbols-outlined text-slate-600">router</span>
+      </div>
+      <div id="huawei-stats" class="flex items-end gap-4 mb-6">
+        <div class="text-5xl font-black text-white">—</div>
+        <div class="mb-2 text-xs font-bold text-slate-500 uppercase tracking-widest">Taux d'anomalie</div>
+      </div>
+      <div class="space-y-4">
+        <div class="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          <span>Fiabilité Globale</span>
+          <span id="h-reliability">0%</span>
+        </div>
+        <div class="progress-bar"><div id="h-progress" class="progress-fill bg-blue-500" style="width: 0%"></div></div>
+      </div>
+    </div>
+
+    <!-- ALCATEL CARD -->
+    <div class="glass brand-card p-8 rounded-3xl border border-white/5 relative overflow-hidden">
+      <div class="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl"></div>
+      <div class="flex items-center justify-between mb-8">
+        <div class="bg-emerald-600 text-white px-4 py-1.5 rounded-xl text-xs font-black tracking-[0.2em]">ALCATEL</div>
+        <span class="material-symbols-outlined text-slate-600">settings_input_component</span>
+      </div>
+      <div id="alcatel-stats" class="flex items-end gap-4 mb-6">
+        <div class="text-5xl font-black text-white">—</div>
+        <div class="mb-2 text-xs font-bold text-slate-500 uppercase tracking-widest">Taux d'anomalie</div>
+      </div>
+      <div class="space-y-4">
+        <div class="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-500">
+          <span>Fiabilité Globale</span>
+          <span id="a-reliability">0%</span>
+        </div>
+        <div class="progress-bar"><div id="a-progress" class="progress-fill bg-emerald-500" style="width: 0%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+    <div class="lg:col-span-2 glass p-8 rounded-3xl border border-white/5">
+      <div class="flex justify-between items-center mb-10">
+        <div>
+          <h3 class="text-sm font-bold text-white uppercase tracking-widest mb-1">Score Santé par Gouvernorat</h3>
+          <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Classement des régions par stabilité réseau</p>
+        </div>
+        <button onclick="loadEquipData()" class="text-slate-400 hover:text-white transition-colors">
+          <span class="material-symbols-outlined">sync</span>
+        </button>
+      </div>
+      <div id="gouv-list" class="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-10"></div>
+    </div>
+
+    <div class="glass p-8 rounded-3xl border border-white/5">
+      <h3 class="text-sm font-bold text-white uppercase tracking-widest mb-6 flex items-center gap-2">
+        <span class="material-symbols-outlined text-red-400">fmd_bad</span> Ports les plus Critiques
+      </h3>
+      <div id="port-list" class="space-y-4">
+        <!-- Dynamic content -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- ROLAP : Stacked Bar Chart — Causes × Marques               -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="glass p-8 rounded-3xl border border-white/5 mb-12">
+    <div class="mb-8">
+      <h3 class="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
+        <span class="material-symbols-outlined text-orange-400">stacked_bar_chart</span>
+        Analyse Multidimensionnelle des Pannes
+      </h3>
+      <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Agrégation bidimensionnelle via le Cube ROLAP · Constructeur × Type d'anomalie</p>
+    </div>
+    <div class="flex gap-4 flex-wrap mb-6">
+      <span class="flex items-center gap-2 text-[10px] font-bold text-slate-400"><span class="w-3 h-3 rounded-sm bg-blue-500 inline-block"></span>PORT</span>
+      <span class="flex items-center gap-2 text-[10px] font-bold text-slate-400"><span class="w-3 h-3 rounded-sm bg-purple-500 inline-block"></span>CARTE</span>
+      <span class="flex items-center gap-2 text-[10px] font-bold text-slate-400"><span class="w-3 h-3 rounded-sm bg-amber-500 inline-block"></span>ADMIN</span>
+      <span class="flex items-center gap-2 text-[10px] font-bold text-slate-400"><span class="w-3 h-3 rounded-sm bg-slate-500 inline-block"></span>AUTRE</span>
+    </div>
+    <div style="height: 340px; position: relative;">
+      <canvas id="chart-stacked"></canvas>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ -->
+  <!-- ROLAP SECTION 1.5 : Scatter Plot            -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="glass p-6 rounded-3xl border border-white/5 mb-12">
+    <div class="flex justify-between items-center mb-6">
+      <div>
+        <h3 class="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
+          <span class="material-symbols-outlined text-cyan-400">scatter_plot</span>
+          Diagnostic Optique — Corrélation des Puissances
+        </h3>
+        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Généré dynamiquement via le Cube ROLAP · OLT RX vs ONU TX</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold"><span class="w-2.5 h-2.5 rounded-full bg-blue-500/80 inline-block"></span>Normal</span>
+        <span class="flex items-center gap-1.5 text-[10px] text-slate-400 font-bold"><span class="w-2.5 h-2.5 rounded-full bg-red-500/80 inline-block"></span>Anomalie</span>
+      </div>
+    </div>
+    <div style="height: 380px; position: relative;">
+      <canvas id="chart-scatter"></canvas>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <!-- ROLAP : Analyse Hiérarchique — Gouvernorat → Centrale → Chassis   -->
+  <!-- ═══════════════════════════════════════════════════════════════════ -->
+  <div class="glass p-8 rounded-3xl border border-white/5 mb-12">
+    <div class="flex justify-between items-center mb-8">
+      <div>
+        <h3 class="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
+          <span class="material-symbols-outlined text-cyan-400">account_tree</span>
+          Analyse Hiérarchique : Gouvernorat → Centrale → Chassis OLT
+        </h3>
+        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Drill-Down ROLAP · Cliquez sur ⊕ pour explorer les niveaux inférieurs</p>
+      </div>
+      <button onclick="loadHierarchique()" class="text-slate-400 hover:text-white transition-colors">
+        <span class="material-symbols-outlined">sync</span>
+      </button>
+    </div>
+
+    <!-- BREADCRUMB -->
+    <div id="hier-breadcrumb" class="bg-blue-500/10 text-blue-400 px-4 py-3 rounded-xl border border-blue-500/20 text-xs font-bold mb-6 flex items-center gap-2">
+      <span class="material-symbols-outlined text-sm">home</span>
+      <span class="opacity-70">Tunisie</span>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm" id="hier-table">
+        <thead>
+          <tr class="text-[10px] uppercase font-bold text-slate-500 tracking-widest border-b border-white/5">
+            <th class="px-4 py-3 w-1/2">Gouvernorat / Centrale / Chassis</th>
+            <th class="px-4 py-3 text-right">Nb Anomalies</th>
+            <th class="px-4 py-3 text-right">Taux Anomalie %</th>
+            <th class="px-4 py-3 text-right">Moy OLT RX</th>
+          </tr>
+        </thead>
+        <tbody id="hier-body" class="divide-y divide-white/5">
+          <tr><td colspan="4" class="px-4 py-8 text-center text-slate-500">Chargement…</td></tr>
+        </tbody>
+        <tfoot id="hier-foot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script>
+  let chartStacked = null;
+  let chartScatter = null;
+  let lastGouv = null;
+  let lastCent = null;
+
+  async function loadEquipData() {
+    const user = window.getStoredUser();
+    if (!user) return;
+    const headers = authHeaders(false);
+    try {
+      const resM = await fetch(`${API_BASE}/api/stats/marques`, { headers });
+      const stats = await resM.json();
+      
+      const h_taux = (stats.taux_huawei || 0).toFixed(2);
+      const a_taux = (stats.taux_alcatel || 0).toFixed(2);
+
+      // Huawei
+      document.getElementById('huawei-stats').querySelector('.text-5xl').innerText = h_taux + "%";
+      document.getElementById('h-reliability').innerText = (100 - h_taux).toFixed(1) + "%";
+      document.getElementById('h-progress').style.width = (100 - h_taux) + "%";
+
+      // Alcatel
+      document.getElementById('alcatel-stats').querySelector('.text-5xl').innerText = a_taux + "%";
+      document.getElementById('a-reliability').innerText = (100 - a_taux).toFixed(1) + "%";
+      document.getElementById('a-progress').style.width = (100 - a_taux) + "%";
+
+      const resG = await fetch(`${API_BASE}/api/stats/gouvernorats`, { headers });
+      const gouvData = await resG.json();
+      
+      let displayData = gouvData;
+      let labelType = "Gouvernorat";
+      
+      if (user.role === 'technicien') {
+          const resCent = await fetch(`${API_BASE}/api/stats/reclamations-par-centrale`, { headers });
+          const centData = await resCent.json();
+          const myCent = centData.filter(c => c.gouvernorat === (user.assigned_gouvernorat || 'SFAX'));
+          displayData = myCent.map(c => ({
+              gouvernorat: c.ville_centrale,
+              nb_anomalies: c.nb_reclamations,
+              taux_pct: parseFloat((c.nb_reclamations/c.total_mesures*100).toFixed(2)),
+              total: c.total_mesures
+          }));
+          labelType = "Centrale";
+          document.querySelector('h3.text-sm.font-bold.text-white.uppercase').innerHTML = `Score Santé par Centrale (${user.assigned_gouvernorat})`;
+          
+          // Update the "Chassis actifs" badge to "Centrales actives"
+          const badge = document.querySelector('header .bg-blue-600\\/10');
+          if (badge) {
+              badge.innerHTML = `<span class="material-symbols-outlined text-sm">apartment</span> <span id="total-chassis">${displayData.length}</span> Centrales actives`;
+          }
+      }
+
+      // document.getElementById('total-chassis').innerText = displayData.length; (Already handled in the innerHTML update above for tech)
+      if (user.role !== 'technicien') {
+          document.getElementById('total-chassis').innerText = displayData.length;
+      }
+
+      document.getElementById('gouv-list').innerHTML = displayData.map(g => `
+        <div class="group">
+          <div class="flex justify-between items-end mb-3">
+            <div>
+              <span class="text-xs font-black text-white uppercase tracking-wider">${g.gouvernorat}</span>
+              <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">${g.total} mesures analysées</div>
+            </div>
+            <div class="text-right">
+              <span class="text-lg font-black ${g.taux_pct > 15 ? 'text-red-500' : g.taux_pct > 8 ? 'text-orange-500' : 'text-blue-400'}">${g.taux_pct}%</span>
+              <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Taux d'erreur</div>
+            </div>
+          </div>
+          <div class="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
+            <div class="h-full ${g.taux_pct > 15 ? 'bg-red-500' : g.taux_pct > 8 ? 'bg-orange-500' : 'bg-blue-400'} transition-all duration-1000" style="width: ${g.taux_pct}%"></div>
+          </div>
+        </div>
+      `).join("");
+
+      // Top Ports
+      const resP = await fetch(`${API_BASE}/api/stats/top_ports`, { headers });
+      const portData = await resP.json();
+      document.getElementById('port-list').innerHTML = portData.map(p => `
+        <div class="bg-white/5 p-4 rounded-2xl border border-white/5 flex justify-between items-center group hover:bg-red-500/5 transition-all">
+          <div>
+            <div class="text-xs font-black text-white">${p.label}</div>
+            <div class="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">Équipement critique</div>
+          </div>
+          <div class="bg-red-500/10 text-red-500 px-3 py-1 rounded-lg text-xs font-black">${p.nb} err</div>
+        </div>
+      `).join("");
+
+      // ROLAP Stacked Bar & Scatter
+      loadStackedChart(headers);
+      loadScatterChart(headers);
+
+    } catch (err) { console.error(err); }
+  }
+
+  async function loadStackedChart(headers) {
+    try {
+      const res = await fetch(`${API_BASE}/api/stats/causes-marques`, { headers });
+      const data = await res.json();
+      renderStackedChart(data);
+    } catch(e) { console.error('Stacked:', e); }
+  }
+
+  function renderStackedChart(data) {
+    const ctx = document.getElementById('chart-stacked').getContext('2d');
+    if (chartStacked) chartStacked.destroy();
+    const marques = Object.keys(data); // ['HUAWEI', 'ALCATEL']
+    const categories = ['PORT', 'CARTE', 'ADMIN', 'AUTRE'];
+    const palette = { PORT: '#3b82f6', CARTE: '#8b5cf6', ADMIN: '#f59e0b', AUTRE: '#64748b' };
+    chartStacked = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: marques,
+        datasets: categories.map(cat => ({
+          label: cat,
+          data: marques.map(m => data[m][cat] || 0),
+          backgroundColor: palette[cat] + 'cc',
+          borderColor: palette[cat],
+          borderWidth: 1,
+          borderRadius: cat === 'AUTRE' ? { topLeft: 8, topRight: 8 } : 0
+        }))
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: 800 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            titleColor: '#f1f5f9',
+            bodyColor: '#94a3b8',
+            borderColor: 'rgba(255,255,255,0.05)',
+            borderWidth: 1,
+            callbacks: {
+              title: (items) => `${items[0].label} — ${items[0].dataset.label}`,
+              label: (item) => ` ${item.raw.toLocaleString()} anomalies`
+            }
+          }
+        },
+        scales: {
+          x: {
+            stacked: true,
+            grid: { display: false },
+            ticks: { color: '#94a3b8', font: { size: 12, weight: 'bold' } }
+          },
+          y: {
+            stacked: true,
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: { color: '#64748b', font: { size: 10 } },
+            title: { display: true, text: 'Nombre d\'anomalies', color: '#64748b', font: { size: 10, weight: 'bold' } }
+          }
+        }
+      }
+    });
+  }
+
+  async function loadScatterChart(headers) {
+    try {
+      const res = await fetch(`${API_BASE}/api/stats/scatter`, { headers });
+      const data = await res.json();
+      renderScatterChart(data);
+    } catch(e) { console.error('Scatter:', e); }
+  }
+
+  function renderScatterChart(data) {
+    const ctx = document.getElementById('chart-scatter').getContext('2d');
+    if (chartScatter) chartScatter.destroy();
+    const normal = data.filter(p => !p.anomalie);
+    const anom   = data.filter(p =>  p.anomalie);
+    chartScatter = new Chart(ctx, {
+      type: 'scatter',
+      data: {
+        datasets: [
+          {
+            label: 'Normal',
+            data: normal.map(p => ({ x: p.x, y: p.y })),
+            backgroundColor: 'rgba(59,130,246,0.35)',
+            pointRadius: 3,
+            pointHoverRadius: 6
+          },
+          {
+            label: 'Anomalie',
+            data: anom.map(p => ({ x: p.x, y: p.y })),
+            backgroundColor: 'rgba(239,68,68,0.5)',
+            pointRadius: 3.5,
+            pointHoverRadius: 7
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: 600 },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            titleColor: '#f1f5f9',
+            bodyColor: '#94a3b8',
+            borderColor: 'rgba(255,255,255,0.05)',
+            borderWidth: 1,
+            callbacks: {
+              label: (ctx) => {
+                const d = ctx.raw;
+                const src = ctx.datasetIndex === 0 ? normal[ctx.dataIndex] : anom[ctx.dataIndex];
+                return [`ONU TX: ${d.x.toFixed(2)} dBm`, `OLT RX: ${d.y.toFixed(2)} dBm`, `Région: ${src ? src.gouvernorat : '—'}`];
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'ONU Power TX (dBm)', color: '#64748b', font: { size: 10, weight: 'bold' } },
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: { color: '#64748b', font: { size: 10 } }
+          },
+          y: {
+            title: { display: true, text: 'OLT RX ONT Power (dBm)', color: '#64748b', font: { size: 10, weight: 'bold' } },
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: { color: '#64748b', font: { size: 10 } }
+          }
+        }
+      }
+    });
+  }
+
+  setTimeout(loadEquipData, 150);
+
+  // ── Analyse Hiérarchique ──────────────────────────────────────────────
+  let hierData = null;
+  const hierOpen = { gouv: {}, cent: {} }; // tracks open state
+
+  async function loadHierarchique() {
+    try {
+      const res = await fetch(`${API_BASE}/api/stats/hierarchique`, { headers: authHeaders(false) });
+      const json = await res.json();
+      hierData = json;
+      renderHierarchique();
+    } catch(e) { console.error('Hierarchique:', e); }
+  }
+
+  function renderHierarchique() {
+    if (!hierData) return;
+    const tbody = document.getElementById('hier-body');
+    const tfoot = document.getElementById('hier-foot');
+    let html = '';
+
+    for (const gouv of hierData.rows) {
+      const gKey = gouv.gouvernorat;
+      const gOpen = hierOpen.gouv[gKey] || false;
+      const tauxColor = gouv.taux_pct > 15 ? 'text-red-400' : gouv.taux_pct > 8 ? 'text-orange-400' : 'text-blue-400';
+
+      // Level 1 — Gouvernorat row
+      html += `
+        <tr class="hover:bg-white/3 transition-colors cursor-pointer" onclick="toggleGouv('${gKey}')">
+          <td class="px-4 py-3.5">
+            <div class="flex items-center gap-3">
+              <span class="text-slate-400 font-mono text-xs w-4 text-center select-none">${gOpen ? '⊖' : '⊕'}</span>
+              <span class="text-xs font-black text-white uppercase tracking-wider">${gKey}</span>
+            </div>
+          </td>
+          <td class="px-4 py-3.5 text-right font-black text-white">${gouv.nb_anomalies.toLocaleString()}</td>
+          <td class="px-4 py-3.5 text-right font-bold ${tauxColor}">${gouv.taux_pct}%</td>
+          <td class="px-4 py-3.5 text-right font-mono text-slate-400 text-xs">${gouv.moy_olt_rx} dBm</td>
+        </tr>`;
+
+      if (gOpen) {
+        for (const cent of gouv.centrales) {
+          const cKey = `${gKey}__${cent.centrale}`;
+          const cOpen = hierOpen.cent[cKey] || false;
+          const cTauxColor = cent.taux_pct > 15 ? 'text-red-400' : cent.taux_pct > 8 ? 'text-orange-400' : 'text-emerald-400';
+
+          // Level 2 — Centrale row
+          html += `
+            <tr class="hover:bg-white/2 transition-colors cursor-pointer bg-white/[0.02]" onclick="toggleCent('${cKey}')">
+              <td class="px-4 py-2.5 pl-12">
+                <div class="flex items-center gap-3">
+                  <span class="text-slate-500 font-mono text-xs w-4 text-center select-none">${cOpen ? '⊖' : '⊕'}</span>
+                  <span class="text-xs font-bold text-slate-300">${cent.centrale}</span>
+                </div>
+              </td>
+              <td class="px-4 py-2.5 text-right text-sm font-bold text-slate-200">${cent.nb_anomalies.toLocaleString()}</td>
+              <td class="px-4 py-2.5 text-right text-sm font-bold ${cTauxColor}">${cent.taux_pct}%</td>
+              <td class="px-4 py-2.5 text-right font-mono text-slate-500 text-xs">${cent.moy_olt_rx} dBm</td>
+            </tr>`;
+
+          if (cOpen) {
+            for (const ch of cent.chassis) {
+              const chTauxColor = ch.taux_pct > 15 ? 'text-red-400/70' : ch.taux_pct > 8 ? 'text-orange-400/70' : 'text-blue-400/70';
+              // Level 3 — Chassis row
+              html += `
+                <tr class="hover:bg-white/1 transition-colors bg-white/[0.01]">
+                  <td class="px-4 py-2 pl-24">
+                    <div class="flex items-center gap-3">
+                      <span class="text-slate-600 font-mono text-xs select-none">└</span>
+                      <span class="text-xs font-mono text-slate-400">${ch.host_name}</span>
+                    </div>
+                  </td>
+                  <td class="px-4 py-2 text-right text-xs text-slate-400">${ch.nb_anomalies.toLocaleString()}</td>
+                  <td class="px-4 py-2 text-right text-xs font-bold ${chTauxColor}">${ch.taux_pct}%</td>
+                  <td class="px-4 py-2 text-right font-mono text-slate-600 text-xs">${ch.moy_olt_rx} dBm</td>
+                </tr>`;
+            }
+          }
+        }
+      }
+    }
+
+    tbody.innerHTML = html;
+
+    // Footer — Grand Total
+    const totalOlt = hierData.rows.length
+      ? (hierData.rows.reduce((s, r) => s + r.moy_olt_rx, 0) / hierData.rows.length).toFixed(2)
+      : '—';
+    const totalTaux = hierData.rows.length
+      ? (hierData.rows.reduce((s, r) => s + r.taux_pct, 0) / hierData.rows.length).toFixed(2)
+      : '—';
+    tfoot.innerHTML = `
+      <tr class="border-t-2 border-white/10 bg-white/[0.04]">
+        <td class="px-4 py-4 text-xs font-black text-white uppercase tracking-widest">Total</td>
+        <td class="px-4 py-4 text-right font-black text-white">${hierData.total_anomalies.toLocaleString()}</td>
+        <td class="px-4 py-4 text-right font-black text-slate-300">${totalTaux}%</td>
+        <td class="px-4 py-4 text-right font-mono text-slate-400 text-xs">${totalOlt} dBm</td>
+      </tr>`;
+  }
+
+  function updateBreadcrumb() {
+    const bc = document.getElementById('hier-breadcrumb');
+    let text = `<span class="opacity-70 hover:opacity-100 cursor-pointer transition-opacity" onclick="resetBreadcrumb()">Tunisie</span>`;
+    if (lastGouv) {
+      text += ` <span class="material-symbols-outlined text-sm opacity-50">chevron_right</span> 
+                <span class="text-white">${lastGouv}</span>`;
+    }
+    if (lastCent) {
+      const centName = lastCent.split('__')[1];
+      text += ` <span class="material-symbols-outlined text-sm opacity-50">chevron_right</span> 
+                <span class="text-emerald-400">${centName}</span>`;
+    }
+    bc.innerHTML = `<span class="material-symbols-outlined text-sm">home</span> ${text}`;
+  }
+
+  function resetBreadcrumb() {
+    for(let k in hierOpen.gouv) hierOpen.gouv[k] = false;
+    for(let k in hierOpen.cent) hierOpen.cent[k] = false;
+    lastGouv = null;
+    lastCent = null;
+    updateBreadcrumb();
+    renderHierarchique();
+  }
+
+  function toggleGouv(key) {
+    hierOpen.gouv[key] = !hierOpen.gouv[key];
+    if (hierOpen.gouv[key]) {
+      lastGouv = key;
+      lastCent = null;
+    } else if (lastGouv === key) {
+      lastGouv = null;
+      lastCent = null;
+    }
+    updateBreadcrumb();
+    renderHierarchique();
+  }
+  function toggleCent(key) {
+    hierOpen.cent[key] = !hierOpen.cent[key];
+    if (hierOpen.cent[key]) {
+      lastCent = key;
+    } else if (lastCent === key) {
+      lastCent = null;
+    }
+    updateBreadcrumb();
+    renderHierarchique();
+  }
+
+  // Auto-load on page ready
+  setTimeout(() => { loadHierarchique(); }, 300);
+</script>
+</body>
+</html>
+

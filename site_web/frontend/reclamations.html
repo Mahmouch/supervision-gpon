@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Réclamations — NEXMON</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="style_shared.css" rel="stylesheet">
+</head>
+<body class="text-slate-200">
+
+<div id="sidebar-container"></div>
+
+<div class="main-content">
+  <header class="mb-10 animate-fade-in">
+    <h1 class="text-3xl font-black text-white tracking-tight">Gestion des Réclamations</h1>
+    <p class="text-slate-500 text-sm mt-1">Suivi des interventions, attribution technique et résolution en temps réel</p>
+  </header>
+
+  <!-- VUE TECHNICIEN -->
+  <div id="view-tech" class="hidden grid grid-cols-1 xl:grid-cols-12 gap-8 animate-fade-in">
+    <!-- LEFT COLUMN: PROFILE AND STATISTICS -->
+    <div class="xl:col-span-4 space-y-6">
+      <div class="glass p-8 rounded-2xl">
+        <h3 class="text-lg font-bold text-white mb-6 flex items-center gap-2">
+            <span class="material-symbols-outlined text-emerald-400">person_pin</span> Mon Profil Intervenant
+        </h3>
+        <div class="space-y-4">
+          <div class="flex items-center gap-3 p-3 bg-slate-800/20 rounded-xl border border-white/5">
+            <span class="material-symbols-outlined text-slate-400">person</span>
+            <div>
+              <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Identifiant</div>
+              <div class="text-sm font-bold text-white" id="profile-username">—</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 p-3 bg-slate-800/20 rounded-xl border border-white/5">
+            <span class="material-symbols-outlined text-slate-400">mail</span>
+            <div>
+              <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Email</div>
+              <div class="text-sm font-bold text-white" id="profile-email">—</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 p-3 bg-slate-800/20 rounded-xl border border-white/5">
+            <span class="material-symbols-outlined text-slate-400">explore</span>
+            <div>
+              <div class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Région Assignée</div>
+              <div class="text-sm font-bold text-emerald-400" id="profile-gouv">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- INTERVENTIONS STATISTICS -->
+      <div class="glass p-6 rounded-2xl space-y-4">
+        <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest">Statistiques de mes interventions</h4>
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="bg-yellow-500/10 p-3 rounded-xl border border-yellow-500/20">
+            <div class="text-lg font-black text-yellow-500" id="stat-pending">0</div>
+            <div class="text-[8px] font-bold text-slate-500 uppercase tracking-wider">Attente</div>
+          </div>
+          <div class="bg-blue-500/10 p-3 rounded-xl border border-blue-500/20">
+            <div class="text-lg font-black text-blue-500" id="stat-progress">0</div>
+            <div class="text-[8px] font-bold text-slate-500 uppercase tracking-wider">En Cours</div>
+          </div>
+          <div class="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20">
+            <div class="text-lg font-black text-emerald-500" id="stat-resolved">0</div>
+            <div class="text-[8px] font-bold text-slate-500 uppercase tracking-wider">Résolu</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- INSTRUCTION CARD -->
+      <div class="glass p-6 rounded-2xl bg-gradient-to-br from-emerald-500/5 to-transparent border-emerald-500/10">
+        <h4 class="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-3 flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">info</span> Secteur d'Intervention
+        </h4>
+        <p class="text-slate-400 text-xs leading-relaxed">
+          En tant que technicien qualifié, vos interventions sont limitées à votre gouvernorat. Veuillez mettre à jour le statut dès que le travail est effectué sur l'ONU cible.
+        </p>
+      </div>
+    </div>
+    
+    <!-- RIGHT COLUMN: INTERVENTIONS LIST -->
+    <div class="xl:col-span-8">
+      <div class="glass rounded-2xl overflow-hidden">
+        <div class="p-6 border-b border-white/5 flex justify-between items-center bg-slate-900/40">
+          <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider">Mes Réclamations & Tâches Assignées</h3>
+          <span class="px-3 py-1 text-[10px] font-bold bg-slate-800 border border-white/5 rounded-full text-slate-400" id="tech-task-count">0 tâches</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-white/5 text-[10px] uppercase font-bold text-slate-500 tracking-widest">
+              <tr>
+                <th class="px-6 py-4">ONU_ID</th>
+                <th class="px-6 py-4">Type de Problème</th>
+                <th class="px-6 py-4">Détails Techniques</th>
+                <th class="px-6 py-4">Date de Création</th>
+                <th class="px-6 py-4">Statut</th>
+                <th class="px-6 py-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="tech-reclamations-body" class="divide-y divide-white/5">
+               <tr><td colspan="6" class="px-6 py-10 text-center text-slate-500">Chargement des interventions...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VUE ADMIN -->
+  <div id="view-admin" class="hidden grid grid-cols-1 xl:grid-cols-12 gap-8 animate-fade-in">
+    <!-- LEFT COLUMN: CREATION & QUALIFICATION FORM -->
+    <div class="xl:col-span-4">
+      <div class="glass p-8 rounded-2xl sticky top-8">
+        <h3 class="text-lg font-bold text-white mb-6 flex items-center gap-2">
+            <span class="material-symbols-outlined text-blue-500">assignment_add</span> Nouvelle Réclamation
+        </h3>
+        <form id="formAdminReclamation" class="space-y-5">
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">ONU_ID Cible</label>
+            <input type="text" id="admin-onu_id" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500" placeholder="ex: ONT-00123" required>
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Port OLT</label>
+              <input type="text" id="admin-id_port" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500" placeholder="ex: 1/1/0">
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Carte OLT</label>
+              <input type="text" id="admin-id_carte" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-blue-500" placeholder="ex: GPON-8">
+            </div>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Région (Gouvernorat)</label>
+            <select id="admin-gouvernorat" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500" required>
+              <option value="SFAX">SFAX</option>
+              <option value="TUNIS">TUNIS</option>
+              <option value="SOUSSE">SOUSSE</option>
+              <option value="GABES">GABES</option>
+              <option value="BIZERTE">BIZERTE</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Technicien Assigné</label>
+            <select id="admin-technicien" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500" required>
+              <option value="">Sélectionnez un technicien</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Type de Problème</label>
+            <select id="admin-type_probleme" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500">
+              <option>Perte de signal</option>
+              <option>Atténuation excessive</option>
+              <option>Équipement hors service</option>
+              <option>Incohérence administrative</option>
+              <option>Autre</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Description / Notes</label>
+            <textarea id="admin-description" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500" placeholder="Décrivez le problème observé..." required></textarea>
+          </div>
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-900/20">
+            Créer et Attribuer
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: ADMIN CONSOLE TABLE -->
+    <div class="xl:col-span-8 space-y-6">
+      <div class="glass p-8 rounded-2xl">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+          <div>
+            <h3 class="text-lg font-bold text-white">Console de Supervision</h3>
+            <p class="text-xs text-slate-500 mt-1">Liste globale de toutes les réclamations réseau ouvertes</p>
+          </div>
+          <div class="flex flex-wrap gap-3">
+              <select id="filter-gouvernorat" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-blue-500">
+                  <option value="">Toutes les régions</option>
+                  <option value="SFAX">SFAX</option>
+                  <option value="TUNIS">TUNIS</option>
+                  <option value="SOUSSE">SOUSSE</option>
+                  <option value="GABES">GABES</option>
+                  <option value="BIZERTE">BIZERTE</option>
+              </select>
+              <select id="filter-statut" class="bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-blue-500">
+                  <option value="">Tous les statuts</option>
+                  <option value="EN_ATTENTE">En attente</option>
+                  <option value="EN_COURS">En cours</option>
+                  <option value="RESOLU">Résolu</option>
+                  <option value="NON_RESOLU">Non résolu</option>
+              </select>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm">
+            <thead class="bg-white/5 text-[10px] uppercase font-bold text-slate-500 tracking-widest">
+              <tr>
+                <th class="px-6 py-4">ID</th>
+                <th class="px-6 py-4">ONU ID</th>
+                <th class="px-6 py-4">Région</th>
+                <th class="px-6 py-4">Détails Techniques</th>
+                <th class="px-6 py-4">Intervenant</th>
+                <th class="px-6 py-4">Type</th>
+                <th class="px-6 py-4">Statut</th>
+                <th class="px-6 py-4 text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-reclamations-body" class="divide-y divide-white/5">
+              <tr><td colspan="8" class="px-6 py-10 text-center text-slate-500">Chargement de la console...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script>
+  const user = window.getStoredUser();
+  let allReclamations = [];
+  let technicians = [];
+
+  const getStatusClass = (s) => {
+    const map = { 
+      'EN_ATTENTE': 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20', 
+      'EN_COURS': 'bg-blue-500/10 text-blue-500 border-blue-500/20', 
+      'RESOLU': 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+      'NON_RESOLU': 'bg-red-500/10 text-red-500 border-red-500/20' 
+    };
+    return map[s] || 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+  };
+
+  let recommendedTechnician = null;
+
+  async function initPage() {
+    if (!user) return;
+    
+    if (user.role === 'admin') {
+      document.getElementById('view-admin').classList.remove('hidden');
+      await loadTechnicians();
+      await loadAdminReclamations();
+      
+      // Event listeners for filters
+      document.getElementById('filter-gouvernorat').addEventListener('change', filterAdminTable);
+      document.getElementById('filter-statut').addEventListener('change', filterAdminTable);
+      
+      // Event listener for gouv dropdown to update techs
+      document.getElementById('admin-gouvernorat').addEventListener('change', updateTechnicianDropdown);
+
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('onu_id')) {
+        const onuId = urlParams.get('onu_id');
+        await autoFillAnomalyDetails(onuId);
+      }
+    } else {
+      document.getElementById('view-tech').classList.remove('hidden');
+      
+      // Fill profile values
+      document.getElementById('profile-username').innerText = user.username || '—';
+      document.getElementById('profile-email').innerText = user.email || '—';
+      document.getElementById('profile-gouv').innerText = user.assigned_gouvernorat || 'SFAX';
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('onu_id')) {
+        // Auto fill if redirected from dashboard
+        const rawOnu = urlParams.get('onu_id');
+        alert(`Vous avez des interventions en attente pour l'ONU ${rawOnu}`);
+      }
+      
+      await loadTechReclamations();
+    }
+  }
+
+  async function autoFillAnomalyDetails(onuId) {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/anomaly-details/${onuId}`, { headers: authHeaders(false) });
+      if (!res.ok) throw new Error("Erreur de chargement des détails de l'anomalie");
+      
+      const data = await res.json();
+      
+      document.getElementById('admin-onu_id').value = data.onu_id;
+      document.getElementById('admin-id_port').value = data.id_port;
+      document.getElementById('admin-id_carte').value = data.id_carte;
+      document.getElementById('admin-gouvernorat').value = data.gouvernorat;
+      document.getElementById('admin-description').value = data.description;
+      
+      // Mettre à jour l'option type_probleme si elle n'existe pas
+      const typeSelect = document.getElementById('admin-type_probleme');
+      let typeExists = false;
+      for (let i = 0; i < typeSelect.options.length; i++) {
+        if (typeSelect.options[i].text === data.type_probleme) {
+          typeSelect.selectedIndex = i;
+          typeExists = true;
+          break;
+        }
+      }
+      if (!typeExists) {
+        const opt = document.createElement('option');
+        opt.text = data.type_probleme;
+        opt.selected = true;
+        typeSelect.add(opt, 0);
+      }
+      
+      // Stocker le technicien recommandé
+      recommendedTechnician = data.recommended_technicien;
+      
+      // Mettre à jour la liste déroulante des techniciens
+      updateTechnicianDropdown();
+      
+      // Afficher un petit toast de notification en haut
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-6 right-6 bg-blue-600/90 text-white font-bold px-6 py-4 rounded-xl shadow-2xl border border-blue-500/20 z-[999] animate-bounce text-xs flex items-center gap-2';
+      toast.innerHTML = `<span class="material-symbols-outlined">auto_awesome</span> Formulaire pré-rempli et technicien <b>${recommendedTechnician}</b> recommandé !`;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+      
+    } catch (err) {
+      console.error("autoFillAnomalyDetails error:", err);
+    }
+  }
+
+
+  // ----------------------------------------------------
+  // TECHNICIAN METHODS
+  // ----------------------------------------------------
+  async function loadTechReclamations() {
+    try {
+      const res = await fetch(`${API_BASE}/api/reclamations`, { headers: authHeaders(false) });
+      const data = await res.json();
+      if (!Array.isArray(data)) throw new Error("Format invalide");
+      
+      allReclamations = data;
+      document.getElementById('tech-task-count').innerText = `${data.length} tâches`;
+      
+      // Update statistics
+      const pending = data.filter(r => r.statut === 'EN_ATTENTE').length;
+      const inProgress = data.filter(r => r.statut === 'EN_COURS').length;
+      const resolved = data.filter(r => r.statut === 'RESOLU').length;
+      
+      document.getElementById('stat-pending').innerText = pending;
+      document.getElementById('stat-progress').innerText = inProgress;
+      document.getElementById('stat-resolved').innerText = resolved;
+
+      document.getElementById('tech-reclamations-body').innerHTML = data.map(r => `
+        <tr class="hover:bg-white/2 transition-colors">
+          <td class="px-6 py-4 font-bold text-white">${r.onu_id}</td>
+          <td class="px-6 py-4 text-slate-400 text-xs">${r.type_probleme}</td>
+          <td class="px-6 py-4 text-slate-400 text-xs font-mono">
+            <div class="flex flex-col gap-0.5">
+              <span>Port: ${r.id_port || '—'}</span>
+              <span>Carte: ${r.id_carte || '—'}</span>
+            </div>
+          </td>
+          <td class="px-6 py-4 text-slate-500 text-xs">${new Date(r.created_at).toLocaleDateString()}</td>
+          <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-[9px] font-black border ${getStatusClass(r.statut)}">${r.statut}</span></td>
+          <td class="px-6 py-4 text-right">
+            <div class="flex gap-2 justify-end">
+              ${r.statut !== 'RESOLU' ? `
+                <button onclick="updateStatus(${r.id}, 'EN_COURS')" class="px-2.5 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition-all text-xs font-bold">En cours</button>
+                <button onclick="updateStatus(${r.id}, 'RESOLU')" class="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all text-xs font-bold">Résolu</button>
+                <button onclick="updateStatus(${r.id}, 'NON_RESOLU')" class="px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all text-xs font-bold">Échec</button>
+              ` : `
+                <span class="text-xs text-slate-500 italic font-medium">Clôturé</span>
+              `}
+            </div>
+          </td>
+        </tr>
+      `).join("") || '<tr><td colspan="6" class="px-6 py-10 text-center text-slate-500">Aucune réclamation assignée dans votre région.</td></tr>';
+    } catch (err) {
+      console.error("Error loading tech reclamations:", err);
+      document.getElementById('tech-reclamations-body').innerHTML = '<tr><td colspan="6" class="px-6 py-10 text-center text-red-500">Erreur de chargement.</td></tr>';
+    }
+  }
+
+  // ----------------------------------------------------
+  // ADMIN METHODS
+  // ----------------------------------------------------
+  async function loadTechnicians() {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/techniciens`, { headers: authHeaders(false) });
+      technicians = await res.json();
+      updateTechnicianDropdown();
+    } catch (err) {
+      console.error("Error loading technicians:", err);
+    }
+  }
+
+  function updateTechnicianDropdown() {
+    const selectedGouv = document.getElementById('admin-gouvernorat').value;
+    const techSelect = document.getElementById('admin-technicien');
+    
+    // Filter technicians working in this gouvernorat
+    const filtered = technicians.filter(t => t.gouvernorat === selectedGouv);
+    
+    let html = '';
+    if (filtered.length > 0) {
+      html = filtered.map(t => {
+        const isRec = t.username === recommendedTechnician;
+        const suffix = isRec ? " ⭐ RECOMMANDÉ (Le moins chargé)" : ` (Charge : ${t.nb_anomalies_mois || 0} tâches)`;
+        return `<option value="${t.username}" ${isRec ? 'selected' : ''}>${t.username}${suffix}</option>`;
+      }).join('');
+    } else {
+      html = '<option value="">Aucun technicien dans ce gouvernorat</option>';
+      // Show fallback list from other regions
+      html += '<option disabled>--------- Autres Régions ---------</option>';
+      html += technicians.map(t => {
+        const isRec = t.username === recommendedTechnician;
+        const suffix = isRec ? " ⭐ RECOMMANDÉ" : ` (${t.gouvernorat || '—'}, Charge : ${t.nb_anomalies_mois || 0} tâches)`;
+        return `<option value="${t.username}" ${isRec ? 'selected' : ''}>${t.username}${suffix}</option>`;
+      }).join('');
+    }
+    techSelect.innerHTML = html;
+  }
+
+  async function loadAdminReclamations() {
+    try {
+      const res = await fetch(`${API_BASE}/api/reclamations`, { headers: authHeaders(false) });
+      allReclamations = await res.json();
+      renderAdminTable(allReclamations);
+    } catch (err) {
+      console.error("Error loading admin reclamations:", err);
+      document.getElementById('admin-reclamations-body').innerHTML = '<tr><td colspan="8" class="px-6 py-10 text-center text-red-500">Erreur de chargement de la console.</td></tr>';
+    }
+  }
+
+  function renderAdminTable(data) {
+    document.getElementById('admin-reclamations-body').innerHTML = data.map(r => `
+      <tr class="hover:bg-white/2 transition-colors">
+        <td class="px-6 py-4 text-slate-500 font-mono text-xs">#${r.id}</td>
+        <td class="px-6 py-4 font-bold text-white">${r.onu_id}</td>
+        <td class="px-6 py-4 text-slate-400 text-xs">${r.gouvernorat}</td>
+        <td class="px-6 py-4 text-slate-400 text-xs font-mono">
+          <div class="flex flex-col gap-0.5">
+            <span>Port: ${r.id_port || '—'}</span>
+            <span>Carte: ${r.id_carte || '—'}</span>
+          </div>
+        </td>
+        <td class="px-6 py-4 text-slate-400 text-xs font-bold">${r.technicien || '—'}</td>
+        <td class="px-6 py-4 text-slate-400 text-xs">${r.type_probleme}</td>
+        <td class="px-6 py-4"><span class="px-2 py-1 rounded-full text-[9px] font-black border ${getStatusClass(r.statut)}">${r.statut}</span></td>
+        <td class="px-6 py-4">
+          <div class="flex gap-2 justify-center">
+            <button onclick="updateStatus(${r.id}, 'EN_COURS')" title="Marquer en cours" class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition-all text-xs flex items-center justify-center">⏳</button>
+            <button onclick="updateStatus(${r.id}, 'RESOLU')" title="Marquer résolu" class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all text-xs flex items-center justify-center">✅</button>
+            <button onclick="updateStatus(${r.id}, 'NON_RESOLU')" title="Marquer échoué" class="w-8 h-8 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all text-xs flex items-center justify-center">❌</button>
+          </div>
+        </td>
+      </tr>
+    `).join("") || '<tr><td colspan="8" class="px-6 py-10 text-center text-slate-500">Aucune réclamation enregistrée.</td></tr>';
+  }
+
+  function filterAdminTable() {
+    const selectedGouv = document.getElementById('filter-gouvernorat').value;
+    const selectedStatut = document.getElementById('filter-statut').value;
+    
+    let filtered = allReclamations;
+    if (selectedGouv) {
+      filtered = filtered.filter(r => r.gouvernorat === selectedGouv);
+    }
+    if (selectedStatut) {
+      filtered = filtered.filter(r => r.statut === selectedStatut);
+    }
+    
+    renderAdminTable(filtered);
+  }
+
+  // ----------------------------------------------------
+  // SHARED ACTIONS
+  // ----------------------------------------------------
+  document.getElementById('formAdminReclamation')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+      onu_id: document.getElementById('admin-onu_id').value,
+      gouvernorat: document.getElementById('admin-gouvernorat').value,
+      technicien: document.getElementById('admin-technicien').value,
+      type_probleme: document.getElementById('admin-type_probleme').value,
+      description: document.getElementById('admin-description').value,
+      id_port: document.getElementById('admin-id_port').value || null,
+      id_carte: document.getElementById('admin-id_carte').value || null
+    };
+    try {
+      const res = await fetch(`${API_BASE}/api/reclamations`, { 
+        method: 'POST', 
+        headers: authHeaders(true), 
+        body: JSON.stringify(body) 
+      });
+      if (res.ok) {
+        alert("Réclamation qualifiée et attribuée avec succès !");
+        document.getElementById('formAdminReclamation').reset();
+        await loadAdminReclamations();
+      } else {
+        const errData = await res.json();
+        alert("Erreur: " + (errData.detail || "Échec d'envoi"));
+      }
+    } catch (err) {
+      alert("Erreur d'envoi");
+    }
+  });
+
+  async function updateStatus(id, newStatut) {
+    try {
+      const res = await fetch(`${API_BASE}/api/reclamations/${id}/status`, {
+        method: 'PATCH',
+        headers: authHeaders(true),
+        body: JSON.stringify({ statut: newStatut })
+      });
+      if (res.ok) {
+        if (user.role === 'admin') {
+          await loadAdminReclamations();
+        } else {
+          await loadTechReclamations();
+        }
+      } else {
+        const errorData = await res.json();
+        alert("Impossible de modifier le statut : " + (errorData.detail || "Inconnu"));
+      }
+    } catch (err) {
+      alert("Erreur réseau");
+    }
+  }
+
+  initPage();
+</script>
+</body>
+</html>

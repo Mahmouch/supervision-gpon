@@ -1,0 +1,32 @@
+# ================================================
+#   requirements.txt — Supervision Réseau GPON
+#   Installation : pip install -r requirements.txt
+# ================================================
+
+# ─── Framework Web ────────────────────────────────
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+
+# ─── Base de données ──────────────────────────────
+sqlalchemy==2.0.35
+pg8000==1.31.2
+
+# ─── Authentification & Sécurité ──────────────────
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.12
+
+# ─── Machine Learning ─────────────────────────────
+scikit-learn==1.5.2
+numpy==1.26.4
+pandas==2.2.3
+joblib==1.4.2
+
+# ─── Validation des données ───────────────────────
+pydantic[email]==2.9.2
+
+# ─── Variables d'environnement ────────────────────
+python-dotenv==1.0.1
+
+# ─── Utilitaires ──────────────────────────────────
+openpyxl==3.1.5

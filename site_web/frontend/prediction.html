@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Prédiction — NEXMON</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="style_shared.css" rel="stylesheet">
+</head>
+<body class="text-slate-200">
+
+<div id="sidebar-container"></div>
+
+<div class="main-content">
+  <header class="mb-10">
+    <h1 class="text-3xl font-black text-white tracking-tight">Prédiction d'Anomalie IA</h1>
+    <p class="text-slate-500 text-sm mt-1">Simulateur de détection basé sur les paramètres optiques GPON</p>
+  </header>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <div class="lg:col-span-7">
+      <div class="glass p-8 rounded-2xl">
+        <h3 class="text-lg font-bold text-white mb-6">Paramètres de Mesure</h3>
+        <form id="predictForm" class="space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">OLT_POWER_TX (dBm)</label>
+              <input type="number" step="0.01" id="olt_tx" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500" value="2.5" required>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">OLT_RX_ONT_POWER (dBm)</label>
+              <input type="number" step="0.01" id="olt_rx" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500" value="-22.4" required>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">ONU_POWER_TX (dBm)</label>
+              <input type="number" step="0.01" id="onu_tx" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500" value="1.8" required>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">ONU_POWER_RX (dBm)</label>
+              <input type="number" step="0.01" id="onu_rx" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500" value="-19.5" required>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-6">
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">F_SUSP — Flag Suspect</label>
+              <div class="flex rounded-xl overflow-hidden border border-slate-700" id="fsusp-toggle">
+                <button type="button" id="fsusp-0" onclick="setFsusp(0)"
+                  class="flex-1 py-3 text-sm font-bold transition-all bg-emerald-500/20 text-emerald-400 border-r border-slate-700">
+                  0 — Inactif
+                </button>
+                <button type="button" id="fsusp-1" onclick="setFsusp(1)"
+                  class="flex-1 py-3 text-sm font-bold transition-all bg-slate-900 text-slate-500">
+                  1 — Actif
+                </button>
+              </div>
+              <input type="hidden" id="f_susp" value="0">
+            </div>
+
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">ADMIN_STATUS</label>
+              <select id="admin_st" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500">
+                <option value="1">UP (1)</option><option value="0">DOWN (0)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">OPER_STATUS</label>
+              <select id="oper_st" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500">
+                <option value="1">UP (1)</option><option value="0">DOWN (0)</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-900/20 active:scale-95">
+             🔮 Analyser la mesure
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div class="lg:col-span-5">
+      <div id="resultBox" class="hidden glass p-8 rounded-2xl border-l-4 border-blue-500 h-full flex flex-col justify-center">
+        <h3 class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-8">Verdict de l'IA</h3>
+        
+        <div class="space-y-8">
+           <div class="flex justify-between items-end">
+              <span class="text-slate-400 text-xs font-semibold">Anomalie Détectée</span>
+              <span id="resAnom" class="text-4xl font-black">—</span>
+           </div>
+           
+           <div class="grid grid-cols-2 gap-4">
+              <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                 <div class="text-[10px] font-bold text-slate-500 uppercase mb-1">Cluster / Cause</div>
+                 <div id="resClust" class="text-lg font-bold text-white">—</div>
+              </div>
+              <div class="bg-white/5 p-4 rounded-xl border border-white/5">
+                 <div class="text-[10px] font-bold text-slate-500 uppercase mb-1">Sévérité</div>
+                 <div id="resSev" class="text-lg font-bold text-white">—</div>
+              </div>
+           </div>
+
+           <div class="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10">
+              <p id="resMsg" class="text-xs leading-relaxed text-slate-400 italic">Prêt pour l'analyse...</p>
+           </div>
+        </div>
+      </div>
+      
+      <div id="noResult" class="glass p-8 rounded-2xl h-full flex flex-col items-center justify-center text-center opacity-40">
+          <div class="text-5xl mb-4">🔍</div>
+          <p class="text-sm font-semibold">En attente de saisie...</p>
+          <p class="text-[10px] text-slate-500 mt-1 max-w-[200px]">L'algorithme hybride analysera vos données en temps réel.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="auth.js"></script>
+<script>
+  // Securite : Bloquer l'acces direct pour les techniciens
+  (function() {
+    const user = window.getStoredUser();
+    if (user && user.role !== 'admin') {
+      window.location.href = "index.html";
+    }
+  })();
+</script>
+<script src="nav.js"></script>
+<script>
+  function setFsusp(val) {
+    document.getElementById('f_susp').value = val;
+    const btn0 = document.getElementById('fsusp-0');
+    const btn1 = document.getElementById('fsusp-1');
+    if (val === 0) {
+      btn0.className = 'flex-1 py-3 text-sm font-bold transition-all bg-emerald-500/20 text-emerald-400 border-r border-slate-700';
+      btn1.className = 'flex-1 py-3 text-sm font-bold transition-all bg-slate-900 text-slate-500';
+    } else {
+      btn0.className = 'flex-1 py-3 text-sm font-bold transition-all bg-slate-900 text-slate-500 border-r border-slate-700';
+      btn1.className = 'flex-1 py-3 text-sm font-bold transition-all bg-red-500/20 text-red-400';
+    }
+  }
+
+  document.getElementById('predictForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+      olt_power_tx: parseFloat(document.getElementById('olt_tx').value) || 0,
+      olt_rx_ont_power: parseFloat(document.getElementById('olt_rx').value) || 0,
+      onu_power_tx: parseFloat(document.getElementById('onu_tx').value) || 0,
+      onu_power_rx: parseFloat(document.getElementById('onu_rx').value) || 0,
+      f_susp: parseInt(document.getElementById('f_susp').value) || 0,
+      admin_status: parseInt(document.getElementById('admin_st').value) || 0,
+      oper_status: parseInt(document.getElementById('oper_st').value) || 0
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/api/predict`, {
+        method: 'POST',
+        headers: authHeaders(true),
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) {
+        const errDetail = await res.json();
+        console.error("Erreur API Predict:", errDetail);
+        alert("Erreur de validation: " + JSON.stringify(errDetail.detail));
+        return;
+      }
+      const data = await res.json();
+      
+      document.getElementById('noResult').classList.add('hidden');
+      const rb = document.getElementById('resultBox');
+      rb.classList.remove('hidden');
+      
+      const resAnom = document.getElementById('resAnom');
+      resAnom.innerText = data.anomalie ? "OUI" : "NON";
+      resAnom.className = `text-4xl font-black ${data.anomalie ? 'text-red-500' : 'text-emerald-500'}`;
+      rb.className = `glass p-8 rounded-2xl border-l-4 h-full flex flex-col justify-center ${data.anomalie ? 'border-red-500' : 'border-emerald-500'}`;
+      
+      const realNames = {0: 'PORT', 1: 'CARTE', 2: 'ADMIN', 3: 'AUTRE'};
+      document.getElementById('resClust').innerText = realNames[data.cluster] || data.cluster_nom || "N/A";
+      document.getElementById('resSev').innerText = data.severite || "NORMALE";
+      document.getElementById('resMsg').innerText = data.message || "";
+
+    } catch(err) { alert("Erreur lors de la prédiction."); }
+  });
+</script>
+</body>
+</html>

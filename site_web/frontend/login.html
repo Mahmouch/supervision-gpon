@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Connexion — NEXMON</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #0f172a; }
+    .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+  </style>
+</head>
+<body class="text-slate-200 min-h-screen flex items-center justify-center p-4">
+
+<div class="w-full max-w-md">
+  <div class="text-center mb-8 flex flex-col items-center">
+    <img src="nexmon.png" alt="NEXMON Logo" class="w-24 h-24 mb-4 object-contain animate-[pulse_3s_infinite] drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+    <h1 class="text-4xl font-extrabold text-white tracking-wider">NEX<span class="text-blue-500">MON</span></h1>
+    <p class="text-slate-400 text-sm mt-2">Plateforme Analytique de Performance Réseau</p>
+  </div>
+
+  <!-- PANNEAU CONNEXION -->
+  <div id="panel-login" class="glass rounded-2xl p-8 shadow-2xl space-y-6">
+    <h2 class="text-xl font-bold text-white">Connexion</h2>
+    
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Identifiant</label>
+        <input type="text" id="username" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="Email ou nom d'utilisateur" required>
+      </div>
+      
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Mot de passe</label>
+        <input type="password" id="password" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="••••••••" required>
+      </div>
+
+      <div class="bg-blue-500/5 p-4 rounded-xl border border-blue-500/10 mb-4">
+        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">Le rôle et la région sont automatiquement détectés par le système.</p>
+      </div>
+
+      <button type="submit" id="submitBtn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-900/20">
+        Se connecter
+      </button>
+    </form>
+
+    <div class="pt-4 border-t border-slate-700/50 text-center">
+      <p class="text-sm text-slate-400">Pas de compte ? 
+        <button onclick="togglePanels()" class="text-blue-400 font-semibold hover:underline">S'inscrire comme Technicien</button>
+      </p>
+    </div>
+
+    <div id="errorBox" class="hidden text-red-400 text-sm text-center bg-red-400/10 py-2 rounded-lg"></div>
+  </div>
+
+  <!-- PANNEAU INSCRIPTION -->
+  <div id="panel-signup" class="hidden glass rounded-2xl p-8 shadow-2xl space-y-6">
+    <h2 class="text-xl font-bold text-white">Créer un compte Technicien</h2>
+    
+    <form id="signupForm" class="space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Nom d'utilisateur</label>
+        <input type="text" id="reg-username" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="ex: mahmoud_gpon" required>
+      </div>
+      
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Email Professionnel</label>
+        <input type="email" id="reg-email" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="nom@exemple.com" required>
+      </div>
+      
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Mot de passe (min 6)</label>
+        <input type="password" id="reg-password" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="••••••••" required>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Gouvernorat d'affectation</label>
+        <select id="reg-gouvernorat" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
+            <option value="SFAX">SFAX</option><option value="TUNIS">TUNIS</option><option value="SOUSSE">SOUSSE</option>
+            <option value="NABEUL">NABEUL</option><option value="MONASTIR">MONASTIR</option><option value="GABES">GABES</option>
+            <option value="GAFSA">GAFSA</option><option value="KAIROUAN">KAIROUAN</option><option value="BIZERTE">BIZERTE</option>
+            <option value="ARIANA">ARIANA</option><option value="BEJA">BEJA</option>
+        </select>
+      </div>
+
+      <button type="submit" id="regBtn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-emerald-900/20">
+        Créer mon compte
+      </button>
+    </form>
+
+    <div class="pt-4 border-t border-slate-700/50 text-center">
+      <p class="text-sm text-slate-400">Déjà inscrit ? 
+        <button onclick="togglePanels()" class="text-blue-400 font-semibold hover:underline">Se connecter</button>
+      </p>
+    </div>
+
+    <div id="regErrorBox" class="hidden text-red-400 text-sm text-center bg-red-400/10 py-2 rounded-lg"></div>
+  </div>
+</div>
+
+<script src="auth.js"></script>
+<script>
+  const loginForm = document.getElementById('loginForm');
+  const signupForm = document.getElementById('signupForm');
+
+  function togglePanels() {
+    document.getElementById('panel-login').classList.toggle('hidden');
+    document.getElementById('panel-signup').classList.toggle('hidden');
+  }
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorBox = document.getElementById('errorBox');
+    const submitBtn = document.getElementById('submitBtn');
+    errorBox.classList.add('hidden');
+    submitBtn.disabled = true;
+    submitBtn.innerText = "Authentification...";
+
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+
+    try {
+      const response = await fetch(API_BASE + "/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Identifiants invalides");
+
+      setToken(data.access_token);
+      const user = await fetchMe();
+      if (user) {
+          localStorage.setItem("gpon_user_profile", JSON.stringify(user));
+          window.location.href = "index.html";
+      } else {
+          throw new Error("Erreur de récupération du profil");
+      }
+    } catch (err) {
+      errorBox.innerText = err.message;
+      errorBox.classList.remove('hidden');
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerText = "Se connecter";
+    }
+  });
+
+  signupForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const regErrorBox = document.getElementById('regErrorBox');
+    const regBtn = document.getElementById('regBtn');
+    regErrorBox.classList.add('hidden');
+    regBtn.disabled = true;
+
+    const username = document.getElementById('reg-username').value;
+    const email = document.getElementById('reg-email').value;
+    const password = document.getElementById('reg-password').value;
+    const gouv = document.getElementById('reg-gouvernorat').value;
+
+    try {
+      const response = await fetch(API_BASE + "/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, email, password, assigned_gouvernorat: gouv })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || "Échec inscription");
+
+      alert("Compte créé avec succès ! Connectez-vous.");
+      togglePanels();
+    } catch (err) {
+      regErrorBox.innerText = err.message;
+      regErrorBox.classList.remove('hidden');
+    } finally {
+      regBtn.disabled = false;
+    }
+  });
+</script>
+
+</body>
+</html>

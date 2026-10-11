@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NOC Dashboard — NEXMON</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="style_shared.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root { --sidebar-w: 280px; }
+    .kpi-card { position: relative; overflow: hidden; background: rgba(30, 41, 59, 0.4); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.05); }
+    .sparkline-container { position: absolute; bottom: 0; left: 0; width: 100%; height: 40px; opacity: 0.3; pointer-events: none; }
+    #map { height: 450px; border-radius: 1.5rem; border: 1px solid rgba(255,255,255,0.05); z-index: 10; }
+    .chart-box { height: 350px; position: relative; }
+    .main-content { margin-left: var(--sidebar-w); padding: 40px; min-height: 100vh; }
+  </style>
+</head>
+<body class="text-slate-200 min-h-screen">
+
+<div id="sidebar-container"></div>
+
+<div class="main-content">
+  <header class="flex justify-between items-center mb-10">
+    <div>
+      <h1 id="page-title" class="text-3xl font-black text-white tracking-tight">Dashboard Global</h1>
+      <p class="text-slate-500 text-sm mt-1">Supervision analytique du réseau fibre optique GPON</p>
+    </div>
+    <div class="flex gap-4">
+      <div class="flex items-center gap-3">
+        <div id="filter-badge" class="hidden items-center gap-2 px-4 py-2 rounded-xl text-xs font-black border animate-pulse" style="display:none">
+          <span class="material-symbols-outlined text-sm">filter_list</span>
+          <span id="filter-badge-text">Filtre actif</span>
+          <button onclick="toggleCategory(currentCategory)" class="ml-1 text-current opacity-60 hover:opacity-100">✕</button>
+        </div>
+        <div id="last-update" class="text-[10px] text-slate-500 bg-slate-800/50 px-3 py-2 rounded-lg border border-white/5 flex items-center gap-2">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          LIVE DATA
+        </div>
+      </div>
+      <button onclick="loadData()" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-900/20 transition-all flex items-center gap-2">
+        <span class="material-symbols-outlined text-sm">refresh</span> Actualiser
+      </button>
+    </div>
+  </header>
+  
+  <!-- Alerte Régionale pour Technicien -->
+  <div id="regional-alert" class="hidden mb-10 bg-red-500/10 border border-red-500/20 p-6 rounded-2xl flex items-center gap-6 animate-pulse">
+    <div class="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center">
+      <span class="material-symbols-outlined text-red-500">warning</span>
+    </div>
+    <div>
+      <h4 class="text-white font-black text-sm uppercase tracking-widest">Alerte Vigilance Régionale</h4>
+      <p id="alert-msg" class="text-red-400/80 text-xs font-bold mt-1 uppercase tracking-tight">Le taux d'anomalies dans votre région dépasse le seuil critique.</p>
+    </div>
+    <a href="anomalies.html" class="ml-auto bg-red-500 hover:bg-red-400 text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors">Intervenir</a>
+  </div>
+
+  <!-- KPI Grid -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+    <div class="glass kpi-card p-6 rounded-2xl">
+      <div class="flex justify-between items-start mb-4">
+        <div class="bg-blue-500/10 p-2.5 rounded-xl"><span class="material-symbols-outlined text-blue-400">monitoring</span></div>
+        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Mesures</span>
+      </div>
+      <div id="kpi-total" class="text-3xl font-black text-white">0</div>
+      <canvas id="spark-total" class="sparkline-container"></canvas>
+    </div>
+
+    <div class="glass kpi-card p-6 rounded-2xl">
+      <div class="flex justify-between items-start mb-4">
+        <div class="bg-red-500/10 p-2.5 rounded-xl"><span class="material-symbols-outlined text-red-400">error</span></div>
+        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Anomalies</span>
+      </div>
+      <div id="kpi-anomalies" class="text-3xl font-black text-white">0</div>
+      <canvas id="spark-anomalies" class="sparkline-container"></canvas>
+    </div>
+
+    <div class="glass kpi-card p-6 rounded-2xl">
+      <div class="flex justify-between items-start mb-4">
+        <div class="bg-orange-500/10 p-2.5 rounded-xl"><span class="material-symbols-outlined text-orange-400">percent</span></div>
+        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Taux Moyen</span>
+      </div>
+      <div id="kpi-taux" class="text-3xl font-black text-orange-500">0%</div>
+      <canvas id="spark-taux" class="sparkline-container"></canvas>
+    </div>
+
+    <div class="glass kpi-card p-6 rounded-2xl">
+      <div class="flex justify-between items-start mb-4">
+        <div class="bg-emerald-500/10 p-2.5 rounded-xl"><span class="material-symbols-outlined text-emerald-400">assignment_turned_in</span></div>
+        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Incidents</span>
+      </div>
+      <div id="kpi-incidents" class="text-3xl font-black text-emerald-400">0</div>
+      <canvas id="spark-incidents" class="sparkline-container"></canvas>
+    </div>
+  </div>
+
+  <!-- Main Visuals -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-10">
+    <div class="lg:col-span-2 glass p-6 rounded-2xl">
+      <h3 class="text-sm font-bold text-white uppercase tracking-widest mb-6 flex items-center gap-2">
+        <span class="material-symbols-outlined text-blue-400">public</span> Distribution Géographique des Anomalies
+      </h3>
+      <div id="map"></div>
+    </div>
+
+    <div class="glass p-6 rounded-2xl flex flex-col">
+      <h3 class="text-sm font-bold text-white uppercase tracking-widest mb-6 flex items-center gap-2">
+        <span class="material-symbols-outlined text-purple-400">pie_chart</span> Répartition des Causes
+      </h3>
+      <div class="flex-1 relative flex items-center justify-center">
+        <canvas id="chart-clusters" style="max-height: 280px;"></canvas>
+      </div>
+      <div id="cluster-legend" class="mt-6 space-y-2"></div>
+    </div>
+  </div>
+
+  <div class="glass p-6 rounded-2xl mb-10">
+    <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
+      <h3 class="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
+        <span class="material-symbols-outlined text-blue-400">timeline</span>
+        Évolution Temporelle des Anomalies
+        <span id="evo-period-label" class="text-[10px] font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded-md ml-2">3 MOIS</span>
+      </h3>
+      <!-- Boutons de sélection de période -->
+      <div class="flex gap-2">
+        <button onclick="setEvoPeriod(7)"   id="btn-7j"  class="evo-btn px-4 py-1.5 rounded-lg text-xs font-bold border border-white/10 text-slate-400 hover:text-white hover:border-blue-500/50 transition-all">7 Jours</button>
+        <button onclick="setEvoPeriod(30)"  id="btn-30j" class="evo-btn px-4 py-1.5 rounded-lg text-xs font-bold border border-white/10 text-slate-400 hover:text-white hover:border-blue-500/50 transition-all">30 Jours</button>
+        <button onclick="setEvoPeriod(null)" id="btn-all" class="evo-btn active-evo px-4 py-1.5 rounded-lg text-xs font-bold border border-blue-500/50 text-blue-400 bg-blue-500/10 transition-all">3 Mois</button>
+      </div>
+    </div>
+    <div style="height: 320px; position: relative;">
+      <canvas id="chart-evolution"></canvas>
+    </div>
+  </div>
+
+    <div class="glass p-6 rounded-2xl">
+      <h3 class="text-sm font-bold text-white uppercase tracking-widest mb-6 flex items-center gap-2">
+        <span class="material-symbols-outlined text-purple-400">equalizer</span> 
+        <span id="title-dist">Répartition par Région</span>
+      </h3>
+      <div class="chart-box"><canvas id="chart-gouv"></canvas></div>
+    </div>
+  </div>
+
+
+  <!-- ROLAP SECTION 2 : Radar Chart               -->
+  <!-- ═══════════════════════════════════════════ -->
+  <div class="glass p-6 rounded-2xl mb-10">
+    <div class="flex flex-wrap justify-between items-center mb-6 gap-4">
+      <div>
+        <h3 class="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
+          <span class="material-symbols-outlined text-purple-400">radar</span>
+          Profil de Santé Régional — Cube ROLAP
+        </h3>
+        <p class="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">Slice &amp; Dice multi-dimensionnel · Comparaison régionale vs nationale</p>
+      </div>
+      <div class="flex gap-2 items-center">
+        <label class="text-[10px] font-bold text-slate-400 uppercase">Région :</label>
+        <select id="radar-select" onchange="renderRadarForRegion()" class="bg-slate-800 border border-white/10 text-slate-200 text-xs font-bold rounded-xl px-3 py-1.5 cursor-pointer focus:outline-none focus:border-purple-500">
+          <option value="">Sélectionner…</option>
+        </select>
+      </div>
+    </div>
+    <div style="height: 380px; position: relative;">
+      <canvas id="chart-radar"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script>
+  let map, chartGouv, chartClusters, chartEvolution, chartScatter, chartRadar, sparks = {};
+  let currentCategory = null;
+  let radarData = [];
+  let evoDays = null; // null = tout (3 mois)
+  const colors = { 'PORT': '#3b82f6', 'CARTE': '#8b5cf6', 'ADMIN': '#f59e0b', 'AUTRE': '#64748b' };
+
+  function setEvoPeriod(d) {
+    evoDays = d;
+    // Mettre à jour les boutons
+    document.querySelectorAll('.evo-btn').forEach(b => {
+      b.className = b.className
+        .replace('border-blue-500/50 text-blue-400 bg-blue-500/10', '')
+        .replace('active-evo', '')
+        .trim();
+      b.className += ' border-white/10 text-slate-400';
+    });
+    const activeId = d === 7 ? 'btn-7j' : d === 30 ? 'btn-30j' : 'btn-all';
+    const activeBtn = document.getElementById(activeId);
+    if (activeBtn) {
+      activeBtn.className = activeBtn.className
+        .replace('border-white/10 text-slate-400', '')
+        .trim();
+      activeBtn.className += ' active-evo border-blue-500/50 text-blue-400 bg-blue-500/10';
+    }
+    const label = d === 7 ? '7 JOURS' : d === 30 ? '30 JOURS' : '3 MOIS';
+    document.getElementById('evo-period-label').innerText = label;
+    // Recharger toutes les données avec le nouveau filtre
+    loadData();
+  }
+
+
+
+  function initMap() {
+    if (map) return;
+    const user = window.getStoredUser();
+    let center = [34.0, 9.5];
+    let zoom = 6;
+    
+    // Zoom automatique pour le technicien
+    if (user && user.role === 'technicien' && GOUV_COORDS[user.assigned_gouvernorat]) {
+        center = GOUV_COORDS[user.assigned_gouvernorat];
+        zoom = 10;
+    }
+
+    map = L.map('map').setView(center, zoom);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO'
+    }).addTo(map);
+  }
+
+  const GOUV_COORDS = {
+    'ARIANA': [36.86, 10.19], 'BIZERTE': [37.27, 9.87], 'GABES': [33.88, 10.10],
+    'MAHDIA': [35.50, 11.06], 'MEDENINE': [33.35, 10.49], 'MONASTIR': [35.77, 10.83],
+    'NABEUL': [36.45, 10.73], 'SFAX': [34.74, 10.76], 'SOUSSE': [35.82, 10.63],
+    'TATAOUINE': [32.93, 10.45], 'TUNIS': [36.80, 10.18], 'BEJA': [36.73, 9.18]
+  };
+
+  function updateMapMarkers(data) {
+    const user = window.getStoredUser();
+    map.eachLayer(layer => { if (layer instanceof L.CircleMarker) map.removeLayer(layer); });
+    
+    data.forEach(g => {
+      // Pour le technicien, on n'affiche que sa région
+      if (user.role === 'technicien' && g.gouvernorat !== user.assigned_gouvernorat) return;
+
+      const coords = GOUV_COORDS[g.gouvernorat];
+      if (coords) {
+        const radius = Math.min(25, 5 + (g.nb_anomalies / 10));
+        const color = g.taux_pct > 15 ? '#ef4444' : g.taux_pct > 8 ? '#f59e0b' : '#3b82f6';
+        L.circleMarker(coords, {
+          radius: radius * (user.role === 'technicien' ? 1.5 : 1), // Plus visible pour le tech
+          fillColor: color,
+          color: '#fff',
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 0.6
+        }).addTo(map).bindPopup(`<b>${g.gouvernorat}</b><br>Taux: ${g.taux_pct}%<br>Anomalies: ${g.nb_anomalies}`);
+      }
+    });
+  }
+
+  function renderSpark(id, color) {
+    const ctx = document.getElementById(id).getContext('2d');
+    if (sparks[id]) sparks[id].destroy();
+    const data = Array.from({length: 12}, () => Math.floor(Math.random() * 50) + 50);
+    sparks[id] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.map((_, i) => i),
+        datasets: [{
+          data: data,
+          borderColor: color,
+          borderWidth: 2,
+          fill: true,
+          backgroundColor: color + '22',
+          tension: 0.4,
+          pointRadius: 0
+        }]
+      },
+      options: { 
+        plugins: { legend: false, tooltip: false },
+        scales: { x: { display: false }, y: { display: false } },
+        maintainAspectRatio: false
+      }
+    });
+  }
+
+  async function loadData() {
+    const user = window.getStoredUser();
+    if (!user) return;
+    initMap();
+
+    const titleEl = document.getElementById('page-title');
+    titleEl.innerText = user.role === 'technicien' ? `Dashboard — ${user.assigned_gouvernorat || 'SFAX'}` : "Dashboard Global — Administrateur";
+
+    const headers = authHeaders(false);
+    const params = new URLSearchParams();
+    if (user.role === 'technicien') params.set('gouvernorat', user.assigned_gouvernorat || 'SFAX');
+    if (currentCategory) params.set('category', currentCategory);
+    if (evoDays) params.set('days', evoDays);
+    const filterQuery = params.toString() ? '?' + params.toString() : '';
+
+    try {
+      const resG = await fetch(`${API_BASE}/api/stats/global${filterQuery}`, { headers });
+      const stats = await resG.json();
+      const taux = stats.taux_anomalie || 0;
+      document.getElementById('kpi-total').innerText = stats.total_mesures.toLocaleString();
+      document.getElementById('kpi-anomalies').innerText = stats.nb_anomalies.toLocaleString();
+      document.getElementById('kpi-taux').innerText = taux.toFixed(2) + "%";
+      document.getElementById('kpi-incidents').innerText = stats.nb_incidents || 0;
+
+      // Alerte conditionnelle pour le technicien
+      const alertBox = document.getElementById('regional-alert');
+      if (user.role === 'technicien' && taux > 10) {
+          alertBox.classList.remove('hidden');
+          document.getElementById('alert-msg').innerText = `Le taux d'anomalies à ${user.assigned_gouvernorat || 'votre région'} est de ${taux.toFixed(1)}% (Seuil critique: 10%)`;
+      } else {
+          alertBox.classList.add('hidden');
+      }
+
+      renderSpark('spark-total', '#3b82f6');
+      renderSpark('spark-anomalies', '#ef4444');
+      renderSpark('spark-taux', '#f59e0b');
+      renderSpark('spark-incidents', '#10b981');
+
+      const resE = await fetch(`${API_BASE}/api/stats/evolution${filterQuery}`, { headers });
+      const evoData = await resE.json();
+      renderEvolutionChart(evoData);
+
+      const resV = await fetch(`${API_BASE}/api/stats/gouvernorats${filterQuery}`, { headers });
+      const gouvData = await resV.json();
+      
+      if (user.role === 'technicien') {
+          document.getElementById('title-dist').innerText = "Top Centrales de ma Région";
+          const resCent = await fetch(`${API_BASE}/api/stats/reclamations-par-centrale`, { headers });
+          const centData = await resCent.json();
+          // On ne garde que les centrales de sa région
+          const myCent = centData.filter(c => c.gouvernorat === (user.assigned_gouvernorat || 'SFAX'));
+          renderGouvChart(myCent.map(c => ({ gouvernorat: c.ville_centrale, nb_anomalies: c.nb_reclamations, taux_pct: (c.nb_reclamations/c.total_mesures*100) })));
+      } else {
+          document.getElementById('title-dist').innerText = "Performance par Gouvernorat";
+          renderGouvChart(gouvData);
+      }
+      
+      updateMapMarkers(gouvData);
+
+      const resC = await fetch(`${API_BASE}/api/stats/clusters${filterQuery}`, { headers });
+      const clusterData = await resC.json();
+      renderClusterChart(clusterData);
+
+      // Load ROLAP charts
+      loadRadarChart(headers, user);
+    } catch (err) { console.error(err); }
+  }
+
+  async function loadRadarChart(headers, user) {
+    try {
+      const res = await fetch(`${API_BASE}/api/stats/radar`, { headers });
+      radarData = await res.json();
+      const sel = document.getElementById('radar-select');
+      
+      if (user.role === 'technicien') {
+          const myGouv = user.assigned_gouvernorat || 'SFAX';
+          sel.innerHTML = `<option value="${myGouv}">${myGouv}</option>`;
+          sel.disabled = true;
+          sel.value = myGouv;
+      } else {
+          sel.innerHTML = '<option value="">Sélectionner…</option>' +
+            radarData.map(r => `<option value="${r.gouvernorat}">${r.gouvernorat}</option>`).join('');
+          if (radarData.length > 0) sel.value = radarData[0].gouvernorat;
+      }
+      renderRadarForRegion();
+    } catch(e) { console.error('Radar:', e); }
+  }
+
+
+
+  function renderRadarForRegion() {
+    const sel = document.getElementById('radar-select');
+    const gouv = sel.value;
+    if (!gouv || radarData.length === 0) return;
+    const region = radarData.find(r => r.gouvernorat === gouv);
+    if (!region) return;
+    // Compute national averages
+    const n = radarData.length;
+    const nat = {
+      moy_olt_rx: radarData.reduce((s, r) => s + r.moy_olt_rx, 0) / n,
+      taux_tech:  radarData.reduce((s, r) => s + r.taux_tech, 0) / n,
+      taux_admin: radarData.reduce((s, r) => s + r.taux_admin, 0) / n,
+      taux_global: radarData.reduce((s, r) => s + r.taux_global, 0) / n
+    };
+    // Normalise OLT RX (higher is better, range -30 to -18)
+    const normOlt = (v) => Math.max(0, Math.min(100, ((v + 30) / 12) * 100));
+    // Invert anomaly rates (lower is better)
+    const inv = (v, max=30) => Math.max(0, 100 - (v / max) * 100);
+    const regionVals = [
+      normOlt(region.moy_olt_rx),
+      inv(region.taux_tech),
+      inv(region.taux_admin),
+      inv(region.taux_global)
+    ];
+    const natVals = [
+      normOlt(nat.moy_olt_rx),
+      inv(nat.taux_tech),
+      inv(nat.taux_admin),
+      inv(nat.taux_global)
+    ];
+    const ctx = document.getElementById('chart-radar').getContext('2d');
+    if (chartRadar) chartRadar.destroy();
+    chartRadar = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: ['Qualité Signal OLT', 'Stabilité Technique', 'Conformité Admin', 'Santé Globale'],
+        datasets: [
+          {
+            label: gouv,
+            data: regionVals,
+            backgroundColor: 'rgba(139,92,246,0.2)',
+            borderColor: '#8b5cf6',
+            borderWidth: 2,
+            pointBackgroundColor: '#8b5cf6',
+            pointRadius: 5
+          },
+          {
+            label: 'Moyenne Nationale',
+            data: natVals,
+            backgroundColor: 'rgba(59,130,246,0.1)',
+            borderColor: 'rgba(59,130,246,0.6)',
+            borderDash: [4, 4],
+            borderWidth: 1.5,
+            pointBackgroundColor: '#3b82f6',
+            pointRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: 700 },
+        plugins: {
+          legend: {
+            display: true,
+            labels: { color: '#94a3b8', font: { size: 10, weight: 'bold' }, boxWidth: 12, padding: 16 }
+          },
+          tooltip: {
+            backgroundColor: '#1e293b', titleColor: '#f1f5f9', bodyColor: '#94a3b8',
+            borderColor: 'rgba(255,255,255,0.05)', borderWidth: 1
+          }
+        },
+        scales: {
+          r: {
+            min: 0, max: 100,
+            ticks: { display: false, stepSize: 25 },
+            grid: { color: 'rgba(255,255,255,0.06)' },
+            angleLines: { color: 'rgba(255,255,255,0.06)' },
+            pointLabels: { color: '#94a3b8', font: { size: 10, weight: 'bold' } }
+          }
+        }
+      }
+    });
+  }
+
+  function movingAverage(arr, window) {
+    return arr.map((_, i) => {
+      const start = Math.max(0, i - Math.floor(window / 2));
+      const end   = Math.min(arr.length, start + window);
+      const slice = arr.slice(start, end);
+      return slice.reduce((a, b) => a + b, 0) / slice.length;
+    });
+  }
+
+  function renderEvolutionChart(data) {
+    const ctx = document.getElementById('chart-evolution').getContext('2d');
+    if (chartEvolution) chartEvolution.destroy();
+    if (!data || data.length === 0) return;
+
+    const labels = data.map(d => {
+      const dt = new Date(d.date + 'T00:00:00');
+      return dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    });
+    const anomValues = data.map(d => d.nb);
+    const maValues   = movingAverage(anomValues, 7); // Moyenne mobile 7 jours
+
+    const gradBar = ctx.createLinearGradient(0, 0, 0, 320);
+    gradBar.addColorStop(0, 'rgba(59,130,246,0.55)');
+    gradBar.addColorStop(1, 'rgba(59,130,246,0.05)');
+
+    chartEvolution = new Chart(ctx, {
+      data: {
+        labels,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Anomalies / jour',
+            data: anomValues,
+            backgroundColor: gradBar,
+            borderRadius: 4,
+            borderSkipped: false,
+            order: 2
+          },
+          {
+            type: 'line',
+            label: 'Tendance (moy. 7j)',
+            data: maValues,
+            borderColor: '#f59e0b',
+            borderWidth: 2.5,
+            backgroundColor: 'transparent',
+            tension: 0.5,
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            order: 1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            display: true,
+            labels: {
+              color: '#94a3b8',
+              font: { size: 10, weight: 'bold' },
+              boxWidth: 12,
+              padding: 16
+            }
+          },
+          tooltip: {
+            backgroundColor: '#1e293b',
+            titleColor: '#f1f5f9',
+            bodyColor: '#94a3b8',
+            borderColor: 'rgba(255,255,255,0.05)',
+            borderWidth: 1,
+            padding: 12,
+            callbacks: {
+              title: (items) => `${items[0].label}`,
+              afterBody: (items) => {
+                const d = data[items[0].dataIndex];
+                return [`Taux : ${d.taux}%`, `Total mesures : ${d.total}`];
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(255,255,255,0.04)' },
+            ticks: { color: '#64748b', font: { size: 10 }, stepSize: 1 }
+          },
+          x: {
+            grid: { display: false },
+            ticks: {
+              color: '#64748b',
+              font: { size: 10 },
+              maxRotation: 0,
+              autoSkip: true,
+              maxTicksLimit: evoDays === 7 ? 7 : evoDays === 30 ? 8 : 10
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderGouvChart(data) {
+    const ctx = document.getElementById('chart-gouv').getContext('2d');
+    if (chartGouv) chartGouv.destroy();
+    chartGouv = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: data.map(d => d.gouvernorat),
+        datasets: [{
+          label: 'Anomalies',
+          data: data.map(d => d.nb_anomalies),
+          backgroundColor: data.map(d => d.taux_pct > 15 ? '#ef4444aa' : '#3b82f6aa'),
+          borderRadius: 8,
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.1)'
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { 
+          y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } }, 
+          x: { grid: { display: false }, ticks: { color: '#64748b' } } 
+        }
+      }
+    });
+  }
+
+  function renderClusterChart(data) {
+    const ctx = document.getElementById('chart-clusters').getContext('2d');
+    if (chartClusters) chartClusters.destroy();
+    chartClusters = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: data.map(d => d.groupe),
+        datasets: [{
+          data: data.map(d => d.nb_anomalies),
+          backgroundColor: data.map(d => colors[d.groupe] || '#3b82f6'),
+          borderWidth: 0,
+          hoverOffset: 15
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        onClick: (evt, activeEls) => {
+          if (activeEls.length > 0) {
+            const index = activeEls[0].index;
+            toggleCategory(data[index].groupe);
+          }
+        },
+        plugins: { legend: { display: false } },
+        cutout: '75%'
+      }
+    });
+
+    // Custom Legend with Click
+    const legendEl = document.getElementById('cluster-legend');
+    legendEl.innerHTML = data.map(d => `
+      <div onclick="toggleCategory('${d.groupe}')" class="flex justify-between items-center group cursor-pointer hover:bg-white/5 p-2 rounded-lg transition-colors ${currentCategory === d.groupe ? 'bg-white/10 ring-1 ring-white/10' : ''}">
+        <div class="flex items-center gap-3">
+          <span class="w-3 h-3 rounded-full" style="background: ${colors[d.groupe]}"></span>
+          <span class="text-xs font-bold ${currentCategory === d.groupe ? 'text-white' : 'text-slate-400'} group-hover:text-white">${d.groupe}</span>
+        </div>
+        <span class="text-xs font-black text-white">${d.nb_anomalies}</span>
+      </div>
+    `).join("");
+  }
+
+  function toggleCategory(cat) {
+    currentCategory = (currentCategory === cat) ? null : cat;
+
+    const badge = document.getElementById('filter-badge');
+    const badgeText = document.getElementById('filter-badge-text');
+    const badgeColors = {
+      'PORT':  { bg: 'bg-blue-500/20',   border: 'border-blue-500/40',   text: 'text-blue-400' },
+      'CARTE': { bg: 'bg-purple-500/20', border: 'border-purple-500/40', text: 'text-purple-400' },
+      'ADMIN': { bg: 'bg-amber-500/20',  border: 'border-amber-500/40',  text: 'text-amber-400' },
+      'AUTRE': { bg: 'bg-slate-500/20',  border: 'border-slate-500/40',  text: 'text-slate-400' }
+    };
+
+    if (currentCategory) {
+      const c = badgeColors[currentCategory] || {};
+      badge.className = `flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black border ${c.bg} ${c.border} ${c.text}`;
+      badge.style.display = 'flex';
+      badgeText.innerText = `Filtre : ${currentCategory}`;
+    } else {
+      badge.style.display = 'none';
+    }
+
+    loadData();
+  }
+
+  setTimeout(loadData, 150);
+</script>
+</body>
+</html>

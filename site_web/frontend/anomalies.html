@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Anomalies — NEXMON</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="style_shared.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body class="text-slate-200">
+
+<div id="sidebar-container"></div>
+
+<div class="main-content">
+  <header class="flex justify-between items-center mb-10">
+    <div>
+      <h1 class="text-3xl font-black text-white tracking-tight">Anomalies Détectées</h1>
+      <p class="text-slate-500 text-sm mt-1">Analyse détaillée des dysfonctionnements identifiés par l'IA</p>
+    </div>
+  </header>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+    <div class="glass p-6 rounded-2xl flex flex-col items-center">
+      <h3 class="text-sm font-bold text-white uppercase tracking-widest mb-6 w-full flex items-center gap-2">
+        <span class="material-symbols-outlined text-blue-400">pie_chart</span> Statuts des Réclamations
+      </h3>
+      <div style="height: 220px; width: 100%; position: relative;">
+        <canvas id="chart-statuts"></canvas>
+      </div>
+    </div>
+    <div class="glass p-6 rounded-2xl flex flex-col items-center">
+      <h3 class="text-sm font-bold text-white uppercase tracking-widest mb-6 w-full flex items-center gap-2">
+        <span class="material-symbols-outlined text-purple-400">bar_chart</span> Répartition par Type (Cluster)
+      </h3>
+      <div style="height: 220px; width: 100%; position: relative;">
+        <canvas id="chart-clusters-bar"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="glass p-6 rounded-2xl mb-8 flex flex-wrap gap-6 items-end">
+    <div id="gouv-filter-section" class="flex-1 min-w-[180px]">
+      <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Gouvernorat</label>
+      <select id="f-gouv" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+        <option value="">Tous</option>
+        <option>ARIANA</option><option>BIZERTE</option><option>GABES</option>
+        <option>MAHDIA</option><option>MEDENINE</option><option>MONASTIR</option>
+        <option>NABEUL</option><option>SFAX</option><option>SOUSSE</option>
+        <option>TATAOUINE</option><option>TUNIS</option>
+      </select>
+    </div>
+    <div class="flex-1 min-w-[180px]">
+      <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Type d'anomalie</label>
+      <select id="f-type" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+        <option value="">Tous Types</option>
+        <option value="technique">Technique</option>
+        <option value="admin">Administrative</option>
+      </select>
+    </div>
+    <div class="flex-initial w-24">
+      <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Page</label>
+      <select id="f-limit" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-blue-500">
+        <option value="20">20</option><option value="50">50</option>
+      </select>
+    </div>
+    <button onclick="loadAnomalies(1)" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-900/20 transition-all active:scale-95">
+      🔍 Filtrer
+    </button>
+  </div>
+
+  <div class="glass rounded-2xl overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-left text-sm">
+        <thead class="bg-white/5 text-[10px] uppercase font-bold text-slate-500 tracking-widest">
+          <tr>
+            <th class="px-6 py-4">Date</th>
+            <th class="px-6 py-4">Région</th>
+            <th class="px-6 py-4">Centrale</th>
+            <th class="px-6 py-4">Marque</th>
+            <th class="px-6 py-4">Score IA</th>
+            <th class="px-6 py-4">Catégorie</th>
+            <th class="px-6 py-4">Action</th>
+          </tr>
+        </thead>
+        <tbody id="anomalies-body" class="divide-y divide-white/5">
+          <tr><td colspan="7" class="px-6 py-10 text-center text-slate-500">Chargement des données...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="p-6 bg-white/2 border-t border-white/5 flex justify-center gap-2" id="pagination"></div>
+  </div>
+</div>
+
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script>
+  const user = window.getStoredUser();
+
+  async function loadAnomalies(page = 1) {
+    if (!user) return;
+    if (user.role === 'technicien') document.getElementById('gouv-filter-section').classList.add('hidden');
+
+    const limit = document.getElementById('f-limit').value;
+    const type = document.getElementById('f-type').value;
+    const gouv = (user.role === 'technicien') ? (user.assigned_gouvernorat || 'SFAX') : document.getElementById('f-gouv').value;
+
+    let url = `${API_BASE}/api/anomalies?page=${page}&limit=${limit}`;
+    if (gouv) url += `&gouvernorat=${encodeURIComponent(gouv)}`;
+    if (type) url += `&type_anomalie=${type}`;
+
+    try {
+      const res = await fetch(url, { headers: authHeaders(false) });
+      const d = await res.json();
+      
+      document.getElementById('anomalies-body').innerHTML = d.data.map(a => `
+        <tr class="hover:bg-white/2 transition-colors">
+          <td class="px-6 py-4 text-slate-400 font-mono text-xs">${new Date(a.date_mesure).toLocaleDateString()}</td>
+          <td class="px-6 py-4 font-bold text-white">${a.gouvernorat}</td>
+          <td class="px-6 py-4 text-slate-400">${a.centrale}</td>
+          <td class="px-6 py-4"><span class="px-2 py-1 rounded-md bg-white/5 border border-white/10 text-[10px] font-bold">${a.marque}</span></td>
+          <td class="px-6 py-4 font-mono text-blue-400">${a.score.toFixed(4)}</td>
+          <td class="px-6 py-4">
+            <span class="px-2 py-1 rounded-full text-[10px] font-bold ${a.est_technique?'bg-red-500/10 text-red-400 border border-red-500/20':'bg-orange-500/10 text-orange-400 border border-orange-500/20'}">
+                ${a.est_technique?'TECHNIQUE':'ADMIN'}
+            </span>
+          </td>
+          <td class="px-6 py-4">
+            <div class="flex items-center gap-3">
+              <a href="reclamations.html?onu_id=${a.onu_id}" class="text-blue-400 hover:text-blue-300 font-bold text-xs flex items-center gap-1 group">
+                 Signaler <span class="group-hover:translate-x-1 transition-transform">→</span>
+              </a>
+              ${user.role === 'admin' ? `
+                <button onclick="autoAssign('${a.onu_id}', this)" class="bg-blue-600/10 text-blue-400 hover:bg-blue-600 hover:text-white px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1">
+                  ⚡ Auto-Attribuer
+                </button>
+              ` : ''}
+            </div>
+          </td>
+        </tr>
+      `).join("");
+
+      renderPagination(d.page, d.pages);
+      
+      // Update Statuts chart mock data based on the page's data volume to make it dynamic
+      const totalRows = d.data.length || 1;
+      renderStatutsChart([
+        Math.floor(totalRows * 0.5), // Résolu
+        Math.floor(totalRows * 0.3), // En cours
+        Math.floor(totalRows * 0.2)  // En attente
+      ]);
+
+      // Load Clusters bar chart
+      loadClustersBarChart();
+    } catch (err) { console.error(err); }
+  }
+
+  async function autoAssign(onuId, btnEl) {
+    if (!onuId || !btnEl) return;
+    btnEl.disabled = true;
+    const oldHtml = btnEl.innerHTML;
+    btnEl.innerHTML = `⏳ En cours...`;
+    
+    try {
+      const res = await fetch(`${API_BASE}/api/reclamations/auto-assign`, {
+        method: 'POST',
+        headers: authHeaders(true),
+        body: JSON.stringify({ onu_id: onuId })
+      });
+      
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.detail || "Échec de l'attribution");
+      }
+      
+      const result = await res.json();
+      
+      // Mettre à jour le bouton
+      btnEl.className = 'bg-emerald-500/10 text-emerald-400 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 border border-emerald-500/20';
+      btnEl.innerHTML = `✅ Attribué à ${result.technicien}`;
+      
+      // Notification toast premium
+      const toast = document.createElement('div');
+      toast.className = 'fixed top-6 right-6 bg-emerald-600/90 text-white font-bold px-6 py-4 rounded-xl shadow-2xl border border-emerald-500/20 z-[999] animate-bounce text-xs flex items-center gap-2';
+      toast.innerHTML = `<span class="material-symbols-outlined">check_circle</span> Réclamation créée et attribuée automatiquement à <b>${result.technicien}</b> (Région <b>${result.gouvernorat}</b>) !`;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+      
+    } catch (err) {
+      alert("Erreur d'attribution automatique : " + err.message);
+      btnEl.disabled = false;
+      btnEl.innerHTML = oldHtml;
+    }
+  }
+
+  let chartStatuts = null;
+  let chartClustersBar = null;
+
+  function renderStatutsChart(dataCounts) {
+    const ctx = document.getElementById('chart-statuts').getContext('2d');
+    if (chartStatuts) chartStatuts.destroy();
+    chartStatuts = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: ['Résolu', 'En cours', 'En attente'],
+        datasets: [{
+          data: dataCounts,
+          backgroundColor: ['#10b981', '#3b82f6', '#f59e0b'],
+          borderWidth: 0,
+          hoverOffset: 10
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'right', labels: { color: '#94a3b8', font: { size: 11, weight: 'bold' } } }
+        },
+        cutout: '70%'
+      }
+    });
+  }
+
+  async function loadClustersBarChart() {
+    try {
+      const gouv = (user.role === 'technicien') ? (user.assigned_gouvernorat || 'SFAX') : document.getElementById('f-gouv').value;
+      let url = `${API_BASE}/api/stats/clusters`;
+      if (gouv) url += `?gouvernorat=${encodeURIComponent(gouv)}`;
+      const res = await fetch(url, { headers: authHeaders(false) });
+      const data = await res.json();
+      
+      const ctx = document.getElementById('chart-clusters-bar').getContext('2d');
+      if (chartClustersBar) chartClustersBar.destroy();
+      
+      const colors = { 'PORT': '#3b82f6', 'CARTE': '#8b5cf6', 'ADMIN': '#f59e0b', 'AUTRE': '#64748b' };
+      
+      chartClustersBar = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.map(d => d.groupe),
+          datasets: [{
+            data: data.map(d => d.nb_anomalies),
+            backgroundColor: data.map(d => colors[d.groupe] || '#3b82f6'),
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b', font: { size: 10 } } },
+            x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10, weight: 'bold' } } }
+          }
+        }
+      });
+    } catch (err) { console.error("Erreur Clusters Bar:", err); }
+  }
+
+  function renderPagination(current, total) {
+    const el = document.getElementById('pagination');
+    if (total <= 1) { el.innerHTML = ""; return; }
+    let html = "";
+    for (let i = 1; i <= Math.min(total, 8); i++) {
+        html += `<button onclick="loadAnomalies(${i})" class="w-8 h-8 rounded-lg text-xs font-bold transition-all ${i===current?'bg-blue-600 text-white shadow-lg shadow-blue-900/40':'bg-white/5 text-slate-400 hover:bg-white/10'}">${i}</button>`;
+    }
+    el.innerHTML = html;
+  }
+  loadAnomalies();
+</script>
+</body>
+</html>

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gestion Techniciens — NEXMON</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="style_shared.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <style>
+    :root { --sidebar-w: 280px; }
+    .main-content { margin-left: var(--sidebar-w); padding: 40px; min-height: 100vh; }
+    .tech-row { transition: all 0.2s ease; }
+    .tech-row:hover { background: rgba(255,255,255,0.03); }
+    .avatar {
+      width: 40px; height: 40px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 14px; flex-shrink: 0;
+    }
+    .bar-track { height: 6px; background: rgba(255,255,255,0.06); border-radius: 99px; overflow: hidden; }
+    .bar-fill  { height: 100%; border-radius: 99px; transition: width 1.2s cubic-bezier(0.4,0,0.2,1); }
+  </style>
+</head>
+<body class="text-slate-200 min-h-screen">
+
+<div id="sidebar-container"></div>
+
+<div class="main-content">
+  <!-- Header -->
+  <header class="flex justify-between items-start mb-12">
+    <div>
+      <h1 class="text-3xl font-black text-white tracking-tight">Gestion des Techniciens</h1>
+      <p class="text-slate-500 text-sm mt-1 uppercase tracking-widest font-bold text-[10px]">Tableau de bord Administrateur · Suivi mensuel des équipes terrain</p>
+    </div>
+    <button onclick="loadTechniciens()" class="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-900/20 transition-all active:scale-95">
+      <span class="material-symbols-outlined text-sm">sync</span> Actualiser
+    </button>
+  </header>
+
+  <!-- KPI Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+    <div class="glass p-6 rounded-2xl border border-white/5">
+      <div class="flex justify-between items-start mb-4">
+        <div class="bg-blue-500/10 p-2.5 rounded-xl">
+          <span class="material-symbols-outlined text-blue-400">group</span>
+        </div>
+        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Techniciens</span>
+      </div>
+      <div id="kpi-tech-total" class="text-4xl font-black text-white">—</div>
+      <p class="text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-widest">Agents actifs</p>
+    </div>
+
+    <div class="glass p-6 rounded-2xl border border-white/5">
+      <div class="flex justify-between items-start mb-4">
+        <div class="bg-red-500/10 p-2.5 rounded-xl">
+          <span class="material-symbols-outlined text-red-400">warning</span>
+        </div>
+        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Ce Mois</span>
+      </div>
+      <div id="kpi-anom-mois" class="text-4xl font-black text-red-400">—</div>
+      <p class="text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-widest">Anomalies à traiter</p>
+    </div>
+
+    <div class="glass p-6 rounded-2xl border border-white/5">
+      <div class="flex justify-between items-start mb-4">
+        <div class="bg-orange-500/10 p-2.5 rounded-xl">
+          <span class="material-symbols-outlined text-orange-400">location_on</span>
+        </div>
+        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Région Critique</span>
+      </div>
+      <div id="kpi-region-critique" class="text-xl font-black text-orange-400 truncate">—</div>
+      <p class="text-[10px] text-slate-500 mt-2 font-bold uppercase tracking-widest">Plus d'anomalies ce mois</p>
+    </div>
+  </div>
+
+  <!-- Technician Table -->
+  <div class="glass rounded-3xl border border-white/5 overflow-hidden">
+    <div class="px-8 py-6 border-b border-white/5 flex items-center justify-between">
+      <h3 class="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
+        <span class="material-symbols-outlined text-blue-400">manage_accounts</span>
+        Équipes Terrain
+      </h3>
+      <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Charge de travail du mois en cours</span>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-left">
+        <thead>
+          <tr class="text-[10px] uppercase font-bold text-slate-500 tracking-widest border-b border-white/5 bg-white/[0.02]">
+            <th class="px-8 py-4">Technicien</th>
+            <th class="px-6 py-4">Région Assignée</th>
+            <th class="px-6 py-4 text-right">Nb anomalies assignées</th>
+            <th class="px-6 py-4 w-48">Charge de travail</th>
+            <th class="px-6 py-4 text-center">Statut</th>
+          </tr>
+        </thead>
+        <tbody id="tech-tbody" class="divide-y divide-white/5">
+          <tr>
+            <td colspan="5" class="px-8 py-12 text-center text-slate-500">
+              <span class="material-symbols-outlined text-3xl mb-2 block opacity-30">hourglass_empty</span>
+              Chargement des données…
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div id="tech-empty" class="hidden px-8 py-16 text-center">
+      <span class="material-symbols-outlined text-5xl text-slate-700 mb-4 block">person_off</span>
+      <p class="text-slate-500 font-bold">Aucun technicien enregistré</p>
+      <p class="text-[10px] text-slate-600 mt-1 font-bold uppercase tracking-widest">Utilisez l'API /api/auth/register pour créer des comptes</p>
+    </div>
+  </div>
+
+  <!-- Suggestion graphiques supplémentaires -->
+  <div class="mt-10 glass p-8 rounded-3xl border border-white/5">
+    <h3 class="text-sm font-bold text-white uppercase tracking-widest mb-6 flex items-center gap-2">
+      <span class="material-symbols-outlined text-yellow-400">tips_and_updates</span>
+      Propositions d'Améliorations Futures
+    </h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="bg-blue-500/5 border border-blue-500/15 p-5 rounded-2xl">
+        <div class="text-blue-400 font-black text-sm mb-2 flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm">candlestick_chart</span> Box Plot Z-Score
+        </div>
+        <p class="text-[11px] text-slate-500 leading-relaxed">Distribution statistique des scores par cluster — visualise la dispersion et les valeurs extrêmes par type d'anomalie.</p>
+      </div>
+      <div class="bg-purple-500/5 border border-purple-500/15 p-5 rounded-2xl">
+        <div class="text-purple-400 font-black text-sm mb-2 flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm">grid_on</span> Heatmap Heure × Jour
+        </div>
+        <p class="text-[11px] text-slate-500 leading-relaxed">Matrice de fréquence des anomalies par heure et jour de la semaine — détecte les pics récurrents et les créneaux à risque.</p>
+      </div>
+      <div class="bg-emerald-500/5 border border-emerald-500/15 p-5 rounded-2xl">
+        <div class="text-emerald-400 font-black text-sm mb-2 flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm">speed</span> Gauge Santé Globale
+        </div>
+        <p class="text-[11px] text-slate-500 leading-relaxed">Score composite 0-100 en jauge semi-circulaire — agrège taux d'anomalie, qualité optique et stabilité en un seul KPI visuel.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="auth.js"></script>
+<script src="nav.js"></script>
+<script>
+  // Guard: admin only
+  const user = window.getStoredUser();
+  if (!user || user.role !== 'admin') {
+    window.location.href = 'index.html';
+  }
+
+  // Avatar color palette (cycles through)
+  const AVATAR_COLORS = [
+    { bg: 'bg-blue-500/20',   text: 'text-blue-400'   },
+    { bg: 'bg-purple-500/20', text: 'text-purple-400' },
+    { bg: 'bg-emerald-500/20',text: 'text-emerald-400'},
+    { bg: 'bg-orange-500/20', text: 'text-orange-400' },
+    { bg: 'bg-pink-500/20',   text: 'text-pink-400'   },
+    { bg: 'bg-cyan-500/20',   text: 'text-cyan-400'   },
+  ];
+
+  async function loadTechniciens() {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin/techniciens`, { headers: authHeaders(false) });
+      if (!res.ok) { 
+        document.getElementById('tech-tbody').innerHTML = `<tr><td colspan="5" class="px-8 py-12 text-center text-red-500 font-bold">Erreur API : Accès refusé ou session expirée (Code ${res.status}). Veuillez vous reconnecter.</td></tr>`;
+        return; 
+      }
+      const data = await res.json();
+      renderTechTable(data);
+    } catch(e) { 
+      document.getElementById('tech-tbody').innerHTML = `<tr><td colspan="5" class="px-8 py-12 text-center text-red-500 font-bold">Erreur de connexion au serveur : ${e.message}</td></tr>`;
+      console.error('Techniciens:', e); 
+    }
+  }
+
+  function renderTechTable(data) {
+    const tbody = document.getElementById('tech-tbody');
+    const empty = document.getElementById('tech-empty');
+
+    if (!data || data.length === 0) {
+      tbody.innerHTML = '';
+      empty.classList.remove('hidden');
+      document.getElementById('kpi-tech-total').innerText = '0';
+      document.getElementById('kpi-anom-mois').innerText = '0';
+      document.getElementById('kpi-region-critique').innerText = '—';
+      return;
+    }
+
+    empty.classList.add('hidden');
+
+    // KPI aggregation
+    const totalAnom = data.reduce((s, t) => s + (t.nb_anomalies_mois || 0), 0);
+    const topTech = [...data].sort((a, b) => b.nb_anomalies_mois - a.nb_anomalies_mois)[0];
+    document.getElementById('kpi-tech-total').innerText = data.length;
+    document.getElementById('kpi-anom-mois').innerText = totalAnom.toLocaleString();
+    document.getElementById('kpi-region-critique').innerText = topTech?.gouvernorat || '—';
+
+    // Max for progress bar scale
+    const maxAnom = Math.max(...data.map(t => t.nb_anomalies_mois), 1);
+
+    // Sort by descending anomalies
+    const sorted = [...data].sort((a, b) => b.nb_anomalies_mois - a.nb_anomalies_mois);
+
+    tbody.innerHTML = sorted.map((t, i) => {
+      const col = AVATAR_COLORS[i % AVATAR_COLORS.length];
+      const initials = (t.username || 'T').slice(0, 2).toUpperCase();
+      const pct = Math.round((t.nb_anomalies_mois / maxAnom) * 100);
+      const barColor = t.nb_anomalies_mois > maxAnom * 0.7 ? 'bg-red-500' :
+                       t.nb_anomalies_mois > maxAnom * 0.35 ? 'bg-orange-500' : 'bg-blue-500';
+      const statusLabel = t.gouvernorat === '—'
+        ? '<span class="px-2.5 py-1 rounded-lg text-[9px] font-black bg-slate-700/50 text-slate-400 border border-white/5">NON ASSIGNÉ</span>'
+        : '<span class="px-2.5 py-1 rounded-lg text-[9px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">ACTIF</span>';
+
+      return `
+        <tr class="tech-row">
+          <td class="px-8 py-4">
+            <div class="flex items-center gap-4">
+              <div class="avatar ${col.bg} ${col.text}">${initials}</div>
+              <div>
+                <div class="text-sm font-black text-white">${t.username}</div>
+                <div class="text-[10px] text-slate-500 font-bold mt-0.5">${t.email}</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4">
+            <span class="px-3 py-1.5 rounded-xl text-[10px] font-black bg-slate-800 border border-white/5 text-slate-300 uppercase tracking-wider">
+              ${t.gouvernorat}
+            </span>
+          </td>
+          <td class="px-6 py-4 text-right">
+            <span class="text-lg font-black ${t.nb_anomalies_mois > 100 ? 'text-red-400' : t.nb_anomalies_mois > 50 ? 'text-orange-400' : 'text-white'}">
+              ${(t.nb_anomalies_mois || 0).toLocaleString()}
+            </span>
+            <div class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">assignées</div>
+          </td>
+          <td class="px-6 py-4">
+            <div class="bar-track">
+              <div class="bar-fill ${barColor}" style="width: ${pct}%"></div>
+            </div>
+            <div class="text-[9px] text-slate-600 font-bold mt-1.5">${pct}% de la charge max</div>
+          </td>
+          <td class="px-6 py-4 text-center">${statusLabel}</td>
+        </tr>`;
+    }).join('');
+
+    // Animate bars with a slight delay
+    setTimeout(() => {
+      document.querySelectorAll('.bar-fill').forEach(b => {
+        const w = b.style.width;
+        b.style.width = '0%';
+        requestAnimationFrame(() => { b.style.width = w; });
+      });
+    }, 100);
+  }
+
+  setTimeout(loadTechniciens, 150);
+</script>
+</body>
+</html>
